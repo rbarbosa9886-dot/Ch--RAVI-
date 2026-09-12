@@ -325,3 +325,96 @@ export async function resetDemoData(token: string): Promise<void> {
   localStorage.removeItem('ravi_reservations_backup');
   localStorage.removeItem('ravi_cached_event');
 }
+
+export async function clearAllReservations(token: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/clear-reservations`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.removeItem('ravi_reservations_backup');
+      return data;
+    }
+  } catch (err) {
+    // fallback
+  }
+
+  // Local fallback: clear reservations and reset available quantities of current gifts
+  const currentGifts = await fetchGifts();
+  const resetGifts = currentGifts.map(g => ({
+    ...g,
+    availableQuantity: g.totalQuantity,
+    status: 'available' as const
+  }));
+  localStorage.setItem('ravi_cached_gifts', JSON.stringify(resetGifts));
+  localStorage.removeItem('ravi_reservations_backup');
+  return {
+    success: true,
+    message: 'Todas as reservas foram zeradas. Todos os presentes voltaram a 100% disponíveis!'
+  };
+}
+
+export async function fetchFullBackup(token: string): Promise<{
+  appName: string;
+  backupDate: string;
+  eventDetails: EventDetails;
+  gifts: Gift[];
+  reservations: Reservation[];
+}> {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/backup`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    // fallback
+  }
+
+  const [eventDetails, gifts, reservations] = await Promise.all([
+    fetchEventDetails(),
+    fetchGifts(),
+    fetchAdminReservations(token)
+  ]);
+
+  return {
+    appName: 'Chá do Ravi',
+    backupDate: new Date().toISOString(),
+    eventDetails,
+    gifts,
+    reservations
+  };
+}
+
+export async function restoreFullBackup(backupData: any, token: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/admin/restore-backup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(backupData)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    // fallback
+  }
+
+  if (backupData.gifts) {
+    localStorage.setItem('ravi_cached_gifts', JSON.stringify(backupData.gifts));
+  }
+  if (backupData.reservations) {
+    localStorage.setItem('ravi_reservations_backup', JSON.stringify(backupData.reservations));
+  }
+  if (backupData.eventDetails) {
+    localStorage.setItem('ravi_cached_event', JSON.stringify(backupData.eventDetails));
+  }
+
+  return { success: true, message: 'Backup restaurado com sucesso!' };
+}

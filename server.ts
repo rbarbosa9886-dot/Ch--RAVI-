@@ -351,6 +351,56 @@ app.get('/api/admin/stats', (req, res) => {
   });
 });
 
+// Export full database backup (Admin)
+app.get('/api/admin/backup', verifyAdminAuth, (req, res) => {
+  res.json({
+    appName: 'Chá do Ravi',
+    backupDate: new Date().toISOString(),
+    eventDetails: db.eventDetails,
+    gifts: db.gifts,
+    reservations: db.reservations,
+    stats: {
+      totalGifts: db.gifts.length,
+      totalUnits: db.gifts.reduce((acc, g) => acc + g.totalQuantity, 0),
+      availableUnits: db.gifts.reduce((acc, g) => acc + g.availableQuantity, 0),
+      chosenUnits: db.gifts.reduce((acc, g) => acc + (g.totalQuantity - g.availableQuantity), 0)
+    }
+  });
+});
+
+// Restore backup from uploaded JSON (Admin)
+app.post('/api/admin/restore-backup', verifyAdminAuth, (req, res) => {
+  const { gifts, reservations, eventDetails } = req.body;
+  if (!Array.isArray(gifts)) {
+    return res.status(400).json({ error: 'Arquivo de backup inválido: lista de presentes não encontrada.' });
+  }
+
+  db.gifts = gifts;
+  if (Array.isArray(reservations)) {
+    db.reservations = reservations;
+  }
+  if (eventDetails && typeof eventDetails === 'object') {
+    db.eventDetails = { ...DEFAULT_EVENT_DETAILS, ...eventDetails };
+  }
+  saveDb();
+  res.json({ success: true, message: 'Backup restaurado com sucesso!' });
+});
+
+// Clear all reservations & set 100% available without deleting gifts (Admin)
+app.post('/api/admin/clear-reservations', verifyAdminAuth, (req, res) => {
+  db.reservations = [];
+  db.gifts = db.gifts.map(gift => ({
+    ...gift,
+    availableQuantity: gift.totalQuantity,
+    status: 'available'
+  }));
+  saveDb();
+  res.json({
+    success: true,
+    message: 'Todas as reservas foram zeradas. Todos os presentes voltaram a 100% disponíveis!'
+  });
+});
+
 // Reset demo data endpoint (Admin)
 app.post('/api/admin/reset-demo', verifyAdminAuth, (req, res) => {
   db = {
@@ -359,7 +409,7 @@ app.post('/api/admin/reset-demo', verifyAdminAuth, (req, res) => {
     eventDetails: { ...DEFAULT_EVENT_DETAILS }
   };
   saveDb();
-  res.json({ success: true, message: 'Dados restaurados para o padrão de demonstração.' });
+  res.json({ success: true, message: 'Dados restaurados para o padrão inicial de demonstração.' });
 });
 
 // ------------------------------------

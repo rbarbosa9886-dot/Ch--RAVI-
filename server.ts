@@ -74,7 +74,7 @@ class AsyncMutex {
 const reservationMutex = new AsyncMutex();
 
 // Admin auth check helper
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ravi2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Ravi2026';
 
 function verifyAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
@@ -311,7 +311,7 @@ app.post('/api/admin/login', (req, res) => {
     return res.status(400).json({ error: 'Informe a senha de administrador.' });
   }
 
-  if (password === ADMIN_PASSWORD || password === 'ravi2026') {
+  if (password === ADMIN_PASSWORD || password === 'Ravi2026') {
     return res.json({
       success: true,
       token: 'authenticated-ravi-admin',

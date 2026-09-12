@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Lock, KeyRound, Plus, Edit2, Trash2, RotateCcw, Search,
   CheckCircle2, AlertCircle, BarChart2, Gift as GiftIcon, Users, Settings,
-  LogOut, Save, ExternalLink, Calendar, MapPin, Copy, Check
+  LogOut, Save, ExternalLink, Calendar, MapPin, Copy, Check, Eye, EyeOff
 } from 'lucide-react';
 import { Gift, Reservation, EventDetails, DashboardStats, GiftCategory } from '../types.ts';
 import { CATEGORIES } from './CategoryFilter.tsx';
@@ -44,6 +44,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 }) => {
   // Login states
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -327,18 +328,29 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Senha de Acesso
                 </label>
-                <input
-                  type="password"
-                  required
-                  autoFocus
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Digite a senha..."
-                  className="w-full px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20 focus:border-[#1E3A8A]"
-                />
-                <p className="text-[11px] text-slate-400 mt-1.5">
-                  Dica de demonstração: a senha padrão é <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-bold">ravi2026</code>
-                </p>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoFocus
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Digite a senha..."
+                    className="w-full pl-4 pr-11 py-3 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20 focus:border-[#1E3A8A]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer transition-colors focus:outline-none"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <button

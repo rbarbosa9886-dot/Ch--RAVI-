@@ -1,0 +1,6 @@
+{
+  "name": "Chá do Ravi",
+  "description": "Lista de presentes online para o chá de fraldas do Ravi — Pequeno Explorador, com reservas em tempo real e painel administrativo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,314 @@
+import { Gift, Reservation, EventDetails } from '../types.ts';
+
+export const DEFAULT_EVENT_DETAILS: EventDetails = {
+  babyName: 'RAVI',
+  themeTitle: 'Chá de Fraldas do Ravi — Pequeno Explorador',
+  subtitle: 'Estamos contando os dias para conhecer você!',
+  introText: 'Escolha um presente para o Ravi e faça parte desse momento especial. 💙',
+  eventDate: 'Sábado, 24 de Outubro de 2026',
+  eventTime: '15:30h',
+  eventLocation: 'Espaço Jardim Encantado',
+  eventAddress: 'Rua das Palmeiras, 120 - Jardim das Flores',
+  mapQuery: 'Rua das Palmeiras, 120',
+  pixKey: 'chadoravi@email.com',
+  pixName: 'Pais do Ravi'
+};
+
+export const INITIAL_GIFTS: Gift[] = [
+  // Fraldas
+  {
+    id: 'gift-fralda-rn',
+    name: 'Fraldas tamanho RN',
+    description: 'Pacote de fraldas descartáveis tamanho RN para os primeiros dias.',
+    imageUrl: 'https://images.unsplash.com/photo-1544126592-807ade215a0b?w=600&auto=format&fit=crop&q=80',
+    category: 'fraldas',
+    totalQuantity: 3,
+    availableQuantity: 3,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Pampers Premium Care ou Huggies'
+  },
+  {
+    id: 'gift-fralda-p',
+    name: 'Fraldas tamanho P',
+    description: 'Pacote de fraldas descartáveis tamanho P, muito usadas no primeiro trimestre.',
+    imageUrl: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
+    category: 'fraldas',
+    totalQuantity: 6,
+    availableQuantity: 6,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Pampers Confort Sec ou Huggies Supreme Care'
+  },
+  {
+    id: 'gift-fralda-m',
+    name: 'Fraldas tamanho M',
+    description: 'Pacote de fraldas descartáveis tamanho M (o tamanho mais utilizado!).',
+    imageUrl: 'https://images.unsplash.com/photo-1544126592-807ade215a0b?w=600&auto=format&fit=crop&q=80',
+    category: 'fraldas',
+    totalQuantity: 8,
+    availableQuantity: 7, // 1 already taken as lovely demo
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Pampers Confort Sec / Pants'
+  },
+  {
+    id: 'gift-fralda-g',
+    name: 'Fraldas tamanho G',
+    description: 'Pacote de fraldas descartáveis tamanho G para quando o Ravi estiver crescendo rápido.',
+    imageUrl: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
+    category: 'fraldas',
+    totalQuantity: 6,
+    availableQuantity: 6,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Huggies ou Pampers'
+  },
+  {
+    id: 'gift-fralda-xg',
+    name: 'Fraldas tamanho XG',
+    description: 'Pacote de fraldas tamanho XG para a fase de engatinhar e explorar.',
+    imageUrl: 'https://images.unsplash.com/photo-1544126592-807ade215a0b?w=600&auto=format&fit=crop&q=80',
+    category: 'fraldas',
+    totalQuantity: 4,
+    availableQuantity: 4,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Pampers ou Babysec Ultra'
+  },
+
+  // Higiene
+  {
+    id: 'gift-lencos',
+    name: 'Lenços Umedecidos',
+    description: 'Pacote de lenços umedecidos hipoalergênicos para a pele delicada do Ravi.',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&auto=format&fit=crop&q=80',
+    category: 'higiene',
+    totalQuantity: 8,
+    availableQuantity: 6,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Huggies Puro e Natural ou Pampers Splash'
+  },
+  {
+    id: 'gift-pomada',
+    name: 'Pomada Preventiva de Assaduras',
+    description: 'Tubo de pomada para proteção diária da pele do pequeno explorador.',
+    imageUrl: 'https://images.unsplash.com/photo-1608248597359-00f074d262a3?w=600&auto=format&fit=crop&q=80',
+    category: 'higiene',
+    totalQuantity: 5,
+    availableQuantity: 5,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Desitin azul, Bepantol Baby ou Mustela'
+  },
+  {
+    id: 'gift-kit-higiene',
+    name: 'Kit Higiene e Cuidados',
+    description: 'Cortador de unhas com proteção, tesourinha infantil, escova de cerdas macias e pente.',
+    imageUrl: 'https://images.unsplash.com/photo-1594824813579-450f3b927878?w=600&auto=format&fit=crop&q=80',
+    category: 'higiene',
+    totalQuantity: 2,
+    availableQuantity: 2,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Lillo ou Chicco'
+  },
+  {
+    id: 'gift-aspirador-nasal',
+    name: 'Aspirador Nasal com Estojo',
+    description: 'Aspirador nasal por sucção para alívio imediato da respiração do bebê.',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&auto=format&fit=crop&q=80',
+    category: 'higiene',
+    totalQuantity: 2,
+    availableQuantity: 1,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'NoseFrida ou similar'
+  },
+
+  // Banho
+  {
+    id: 'gift-sabonete',
+    name: 'Sabonete Líquido Cabeça aos Pés',
+    description: 'Fórmula suave com glicerina que não arde os olhos e perfuma delicadamente.',
+    imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80',
+    category: 'banho',
+    totalQuantity: 5,
+    availableQuantity: 4,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Granado Bebê Tradicional ou Mustela'
+  },
+  {
+    id: 'gift-toalha-capuz',
+    name: 'Toalha Felpuda com Capuz',
+    description: 'Toalha 100% algodão super macia com capuz para aquecer o Ravi após o banho.',
+    imageUrl: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&auto=format&fit=crop&q=80',
+    category: 'banho',
+    totalQuantity: 3,
+    availableQuantity: 2,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Algodão macio, cores azul ou neutras'
+  },
+  {
+    id: 'gift-banheira',
+    name: 'Banheira Ergonômica com Suporte',
+    description: 'Banheira segura com indicador de temperatura para a hora do banho ser só relaxamento.',
+    imageUrl: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=600&auto=format&fit=crop&q=80',
+    category: 'banho',
+    totalQuantity: 1,
+    availableQuantity: 1,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Burigotto ou Galzerano'
+  },
+
+  // Roupinhas
+  {
+    id: 'gift-bodies-manga-curta',
+    name: 'Kit Bodies Manga Curta',
+    description: 'Conjunto de 3 bodies de algodão respirável, essenciais para o dia a dia.',
+    imageUrl: 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&auto=format&fit=crop&q=80',
+    category: 'roupinhas',
+    totalQuantity: 4,
+    availableQuantity: 3,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Tamanho P ou M, tons suaves'
+  },
+  {
+    id: 'gift-macacao-explorador',
+    name: 'Macacãozinho Pequeno Explorador',
+    description: 'Macacão macio com pezinho, estampa temática de constelação ou estrelinhas.',
+    imageUrl: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80',
+    category: 'roupinhas',
+    totalQuantity: 3,
+    availableQuantity: 2,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Tamanho M (3 a 6 meses)'
+  },
+  {
+    id: 'gift-kit-meias-lupinhas',
+    name: 'Kit Meias e Luvinhas de Algodão',
+    description: 'Kit de meinhas confortáveis e luvinhas para proteger as mãozinhas curiosas.',
+    imageUrl: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80',
+    category: 'roupinhas',
+    totalQuantity: 3,
+    availableQuantity: 3,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Tamanho RN / 0-3 meses'
+  },
+
+  // Quarto
+  {
+    id: 'gift-ninho-redutor',
+    name: 'Ninho Redutor de Berço',
+    description: 'Ninho acolhedor que simula o útero da mamãe, proporcionando sonos tranquilos.',
+    imageUrl: 'https://images.unsplash.com/photo-1595341888016-a392ef81b7de?w=600&auto=format&fit=crop&q=80',
+    category: 'quarto',
+    totalQuantity: 1,
+    availableQuantity: 1,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Estampa estrelas / tons azul e bege'
+  },
+  {
+    id: 'gift-mantinha-plush',
+    name: 'Mantinha de Plush Suave',
+    description: 'Manta leve, fofinha e térmica para os passeios e noites fresquinhas.',
+    imageUrl: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80',
+    category: 'quarto',
+    totalQuantity: 3,
+    availableQuantity: 3,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Toque de seda / antialérgico'
+  },
+  {
+    id: 'gift-jogo-lencol',
+    name: 'Jogo de Lençol Berço Americano',
+    description: 'Jogo completo em 100% percal de algodão, suave para a pele do Ravi.',
+    imageUrl: 'https://images.unsplash.com/photo-1595341888016-a392ef81b7de?w=600&auto=format&fit=crop&q=80',
+    category: 'quarto',
+    totalQuantity: 2,
+    availableQuantity: 2,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Tons off-white, bege ou azul céu'
+  },
+
+  // Outros
+  {
+    id: 'gift-mochila-maternidade',
+    name: 'Mochila Maternidade Multifuncional',
+    description: 'Mochila impermeável com compartimento térmico para passeios e expedições.',
+    imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&auto=format&fit=crop&q=80',
+    category: 'outros',
+    totalQuantity: 1,
+    availableQuantity: 1,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Cor azul-marinho ou cinza'
+  },
+  {
+    id: 'gift-mordedor-sensorial',
+    name: 'Mordedor e Chocalho Sensorial',
+    description: 'Brinquedo sensorial seguro em silicone livre de BPA para a fase dos dentinhos.',
+    imageUrl: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
+    category: 'outros',
+    totalQuantity: 3,
+    availableQuantity: 2,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Buba ou Fisher-Price'
+  },
+  {
+    id: 'gift-almofada-amamentacao',
+    name: 'Almofada de Amamentação Ergonômica',
+    description: 'Apoio anatômico para trazer conforto à mamãe e segurança ao Ravi.',
+    imageUrl: 'https://images.unsplash.com/photo-1595341888016-a392ef81b7de?w=600&auto=format&fit=crop&q=80',
+    category: 'outros',
+    totalQuantity: 1,
+    availableQuantity: 1,
+    status: 'available',
+    createdAt: '2026-09-12T10:00:00.000Z',
+    suggestedBrand: 'Capa removível e lavável'
+  }
+];
+
+export const INITIAL_RESERVATIONS: Reservation[] = [
+  {
+    id: 'res-sample-1',
+    giftId: 'gift-fralda-m',
+    giftName: 'Fraldas tamanho M',
+    guestName: 'Tia Mariana & Tio Lucas',
+    message: 'Que o pequeno Ravi chegue com muita saúde trazendo ainda mais alegria para todos nós!',
+    quantity: 1,
+    createdAt: '2026-09-12T11:20:00.000Z',
+    status: 'confirmed'
+  },
+  {
+    id: 'res-sample-2',
+    giftId: 'gift-lencos',
+    giftName: 'Lenços Umedecidos',
+    guestName: 'Vovó Helena',
+    message: 'O vovô e a vovó mal podem esperar para te abraçar bem forte, nosso anjinho!',
+    quantity: 1,
+    createdAt: '2026-09-12T12:05:00.000Z',
+    status: 'confirmed'
+  },
+  {
+    id: 'res-sample-3',
+    giftId: 'gift-sabonete',
+    giftName: 'Sabonete Líquido Cabeça aos Pés',
+    guestName: 'Madrinha Camila',
+    message: 'Presentinho com todo amor do mundo para a hora do banho mais gostosa!',
+    quantity: 1,
+    createdAt: '2026-09-12T13:40:00.000Z',
+    status: 'confirmed'
+  }
+];

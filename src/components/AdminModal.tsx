@@ -106,15 +106,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     e.preventDefault();
     setLoginError(null);
     setIsLoggingIn(true);
+    const cleanPassword = password.trim();
     try {
-      const res = await adminLogin(password);
+      const res = await adminLogin(cleanPassword);
       if (res.success && res.token) {
         onLoginSuccess(res.token);
         setPassword('');
         loadReservations(res.token);
+      } else {
+        setLoginError('Senha incorreta. A senha é Ravi2026.');
       }
     } catch (err: any) {
-      setLoginError(err.message || 'Senha incorreta. Tente novamente.');
+      setLoginError(err.message || 'Senha incorreta. A senha é Ravi2026.');
     } finally {
       setIsLoggingIn(false);
     }

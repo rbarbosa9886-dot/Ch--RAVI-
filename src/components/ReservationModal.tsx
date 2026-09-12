@@ -71,9 +71,20 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
         <div className="relative z-10">
           {/* Header */}
           <div className="text-center mb-5">
-            <div className="w-12 h-12 mx-auto mb-2 rounded-2xl bg-sky-100/80 text-[#1E3A8A] flex items-center justify-center border border-sky-200">
-              <GiftIcon className="w-6 h-6" />
-            </div>
+            {gift.imageUrl ? (
+              <div className="w-16 h-16 mx-auto mb-2 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-xs">
+                <img
+                  src={gift.imageUrl}
+                  alt={gift.name}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 mx-auto mb-2 rounded-2xl bg-sky-100/80 text-[#1E3A8A] flex items-center justify-center border border-sky-200">
+                <GiftIcon className="w-6 h-6" />
+              </div>
+            )}
             <p className="text-xs uppercase tracking-widest text-[#1E3A8A] font-semibold">
               Você escolheu:
             </p>

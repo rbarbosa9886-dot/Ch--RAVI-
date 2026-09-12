@@ -8,7 +8,8 @@ import { Gift, Reservation, EventDetails } from './src/types.ts';
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // File persistence paths
 const DATA_DIR = path.join(process.cwd(), 'data');

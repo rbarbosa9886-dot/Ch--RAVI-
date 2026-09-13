@@ -1,140 +1,88 @@
 import { Gift, Reservation, EventDetails, DashboardStats } from './types.ts';
 import { INITIAL_GIFTS, INITIAL_RESERVATIONS, DEFAULT_EVENT_DETAILS } from './data/defaultGifts.ts';
+import {
+  getStoredEventDetails,
+  writeStoredEventDetailsLocal,
+  autoSaveEventDetails,
+  getStoredGifts,
+  writeStoredGiftsLocal,
+  autoSaveGifts,
+  autoSaveSingleGift,
+  autoDeleteGift,
+  STORAGE_KEYS
+} from './services/storageService.ts';
 
 const BASE_URL = '/api';
 
 export async function fetchEventDetails(): Promise<EventDetails> {
+  const localCustom = getStoredEventDetails();
   try {
     const res = await fetch(`${BASE_URL}/event`);
     if (!res.ok) throw new Error('Falha ao carregar detalhes do evento');
-    const data = await res.json();
-    localStorage.setItem('ravi_cached_event', JSON.stringify(data));
+    const data: EventDetails = await res.json();
+
+    // If server has customized data, sync it locally
+    if (data.isCustomized) {
+      writeStoredEventDetailsLocal(data);
+      return data;
+    }
+
+    // If the server returned default template (e.g. cold container start)
+    // but the client previously customized it, keep the user's custom details and re-sync!
+    if (localCustom && localCustom.isCustomized) {
+      autoSaveEventDetails(localCustom, null, { immediate: true });
+      return localCustom;
+    }
+
+    writeStoredEventDetailsLocal(data);
     return data;
   } catch (err) {
-    const cached = localStorage.getItem('ravi_cached_event');
-    if (cached) {
-      try { return JSON.parse(cached); } catch {}
-    }
-    return DEFAULT_EVENT_DETAILS;
+    return localCustom || DEFAULT_EVENT_DETAILS;
   }
 }
 
 export async function updateEventDetails(updates: Partial<EventDetails>, token: string): Promise<EventDetails> {
-  try {
-    const res = await fetch(`${BASE_URL}/event`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(updates)
-    });
-    if (!res.ok) throw new Error('Falha ao atualizar informações');
-    const data = await res.json();
-    localStorage.setItem('ravi_cached_event', JSON.stringify(data));
-    return data;
-  } catch (err) {
-    const current = await fetchEventDetails();
-    const merged = { ...current, ...updates };
-    localStorage.setItem('ravi_cached_event', JSON.stringify(merged));
-    return merged;
-  }
+  return autoSaveEventDetails(updates, token, { immediate: true });
 }
 
 export async function fetchGifts(): Promise<Gift[]> {
+  const localGifts = getStoredGifts();
   try {
     const res = await fetch(`${BASE_URL}/gifts`);
     if (!res.ok) throw new Error('Falha ao carregar presentes');
-    const data = await res.json();
-    localStorage.setItem('ravi_cached_gifts', JSON.stringify(data));
-    return data;
-  } catch (err) {
-    const cached = localStorage.getItem('ravi_cached_gifts');
-    if (cached) {
-      try { return JSON.parse(cached); } catch {}
+    const serverGifts: Gift[] = await res.json();
+
+    const serverHasCustom = serverGifts.some(g => g.isCustomized);
+
+    // If server has custom gifts, update local
+    if (serverHasCustom) {
+      writeStoredGiftsLocal(serverGifts);
+      return serverGifts;
     }
-    return INITIAL_GIFTS;
+
+    // If server returned default template but client has customized gifts list, re-sync to server
+    if (localGifts && localGifts.some(g => g.isCustomized)) {
+      autoSaveGifts(localGifts, null);
+      return localGifts;
+    }
+
+    writeStoredGiftsLocal(serverGifts);
+    return serverGifts;
+  } catch (err) {
+    return localGifts.length > 0 ? localGifts : INITIAL_GIFTS;
   }
 }
 
 export async function createGift(giftData: Partial<Gift>, token: string): Promise<Gift> {
-  try {
-    const res = await fetch(`${BASE_URL}/gifts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(giftData)
-    });
-    if (res.ok) {
-      return res.json();
-    }
-    throw new Error('Falha no servidor');
-  } catch (err) {
-    // Local fallback
-    const newGift: Gift = {
-      id: 'gift-' + Date.now(),
-      name: giftData.name || 'Novo Presente',
-      description: giftData.description || '',
-      category: giftData.category || 'outros',
-      imageUrl: giftData.imageUrl || 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
-      suggestedBrand: giftData.suggestedBrand,
-      totalQuantity: Number(giftData.totalQuantity) || 1,
-      availableQuantity: Number(giftData.totalQuantity) || 1,
-      status: 'available',
-      createdAt: new Date().toISOString()
-    };
-    const current = await fetchGifts();
-    const updated = [newGift, ...current];
-    localStorage.setItem('ravi_cached_gifts', JSON.stringify(updated));
-    return newGift;
-  }
+  return autoSaveSingleGift(giftData, token);
 }
 
 export async function updateGift(id: string, giftData: Partial<Gift>, token: string): Promise<Gift> {
-  try {
-    const res = await fetch(`${BASE_URL}/gifts/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(giftData)
-    });
-    if (res.ok) {
-      return res.json();
-    }
-    throw new Error('Falha no servidor');
-  } catch (err) {
-    const current = await fetchGifts();
-    let updatedGift: Gift | undefined;
-    const updatedList = current.map(g => {
-      if (g.id === id) {
-        updatedGift = { ...g, ...giftData } as Gift;
-        return updatedGift;
-      }
-      return g;
-    });
-    localStorage.setItem('ravi_cached_gifts', JSON.stringify(updatedList));
-    return updatedGift || (giftData as Gift);
-  }
+  return autoSaveSingleGift(giftData, token, id);
 }
 
 export async function deleteGift(id: string, token: string): Promise<void> {
-  try {
-    const res = await fetch(`${BASE_URL}/gifts/${id}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    if (!res.ok) throw new Error('Falha ao excluir presente');
-  } catch (err) {
-    const current = await fetchGifts();
-    const updated = current.filter(g => g.id !== id);
-    localStorage.setItem('ravi_cached_gifts', JSON.stringify(updated));
-  }
+  return autoDeleteGift(id, token);
 }
 
 export interface ReservationResult {
@@ -321,9 +269,14 @@ export async function resetDemoData(token: string): Promise<void> {
   } catch (err) {
     // ignore
   }
-  localStorage.removeItem('ravi_cached_gifts');
+  localStorage.removeItem(STORAGE_KEYS.EVENT);
+  localStorage.removeItem(STORAGE_KEYS.EVENT_CACHED);
+  localStorage.removeItem(STORAGE_KEYS.GIFTS);
+  localStorage.removeItem(STORAGE_KEYS.GIFTS_CACHED);
+  localStorage.removeItem(STORAGE_KEYS.RESERVATIONS);
   localStorage.removeItem('ravi_reservations_backup');
-  localStorage.removeItem('ravi_cached_event');
+  writeStoredEventDetailsLocal(DEFAULT_EVENT_DETAILS);
+  writeStoredGiftsLocal(INITIAL_GIFTS);
 }
 
 export async function clearAllReservations(token: string): Promise<{ success: boolean; message: string }> {
@@ -348,7 +301,7 @@ export async function clearAllReservations(token: string): Promise<{ success: bo
     availableQuantity: g.totalQuantity,
     status: 'available' as const
   }));
-  localStorage.setItem('ravi_cached_gifts', JSON.stringify(resetGifts));
+  writeStoredGiftsLocal(resetGifts);
   localStorage.removeItem('ravi_reservations_backup');
   return {
     success: true,
@@ -400,20 +353,23 @@ export async function restoreFullBackup(backupData: any, token: string): Promise
       body: JSON.stringify(backupData)
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      if (backupData.eventDetails) writeStoredEventDetailsLocal(backupData.eventDetails);
+      if (backupData.gifts) writeStoredGiftsLocal(backupData.gifts);
+      return data;
     }
   } catch (err) {
     // fallback
   }
 
-  if (backupData.gifts) {
-    localStorage.setItem('ravi_cached_gifts', JSON.stringify(backupData.gifts));
+  if (backupData.gifts && Array.isArray(backupData.gifts)) {
+    writeStoredGiftsLocal(backupData.gifts);
   }
   if (backupData.reservations) {
     localStorage.setItem('ravi_reservations_backup', JSON.stringify(backupData.reservations));
   }
   if (backupData.eventDetails) {
-    localStorage.setItem('ravi_cached_event', JSON.stringify(backupData.eventDetails));
+    writeStoredEventDetailsLocal(backupData.eventDetails);
   }
 
   return { success: true, message: 'Backup restaurado com sucesso!' };

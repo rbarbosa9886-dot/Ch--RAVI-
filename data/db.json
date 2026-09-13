@@ -306,6 +306,8 @@
     "eventAddress": "Rua das Palmeiras, 120 - Jardim das Flores",
     "mapQuery": "Rua das Palmeiras, 120",
     "pixKey": "chadoravi@email.com",
-    "pixName": "Pais do Ravi"
+    "pixName": "Pais do Ravi",
+    "isCustomized": true,
+    "updatedAt": 1789272870053
   }
 }

@@ -10,18 +10,27 @@ import { AdminModal } from './components/AdminModal.tsx';
 import { Gift, Reservation, EventDetails, DashboardStats, GiftCategory } from './types.ts';
 import { DEFAULT_EVENT_DETAILS, INITIAL_GIFTS } from './data/defaultGifts.ts';
 import { fetchEventDetails, fetchGifts, fetchDashboardStats, reserveGift } from './api.ts';
+import {
+  getStoredEventDetails,
+  getStoredGifts,
+  subscribeToEventDetails,
+  subscribeToGifts
+} from './services/storageService.ts';
 import { Sparkles, Heart, Compass, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function App() {
-  // Core App State
-  const [eventDetails, setEventDetails] = useState<EventDetails>(DEFAULT_EVENT_DETAILS);
-  const [gifts, setGifts] = useState<Gift[]>(INITIAL_GIFTS);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalGifts: INITIAL_GIFTS.length,
-    totalUnits: INITIAL_GIFTS.reduce((a, b) => a + b.totalQuantity, 0),
-    chosenUnits: INITIAL_GIFTS.reduce((a, b) => a + (b.totalQuantity - b.availableQuantity), 0),
-    availableUnits: INITIAL_GIFTS.reduce((a, b) => a + b.availableQuantity, 0),
-    completionPercentage: 15,
+  // Core App State initialized from centralized storage
+  const [eventDetails, setEventDetails] = useState<EventDetails>(() => getStoredEventDetails());
+  const [gifts, setGifts] = useState<Gift[]>(() => getStoredGifts());
+
+  const [stats, setStats] = useState<DashboardStats>(() => {
+    const initialGiftsList = getStoredGifts();
+    const totalGifts = initialGiftsList.length;
+    const totalUnits = initialGiftsList.reduce((a, b) => a + b.totalQuantity, 0);
+    const chosenUnits = initialGiftsList.reduce((a, b) => a + (b.totalQuantity - b.availableQuantity), 0);
+    const availableUnits = initialGiftsList.reduce((a, b) => a + b.availableQuantity, 0);
+    const completionPercentage = totalUnits > 0 ? Math.round((chosenUnits / totalUnits) * 100) : 15;
+    return { totalGifts, totalUnits, chosenUnits, availableUnits, completionPercentage };
   });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -79,12 +88,31 @@ export default function App() {
   useEffect(() => {
     loadData();
 
+    // Subscribe to centralized storage changes (instant updates from Admin or another tab)
+    const unsubEvent = subscribeToEventDetails((newDetails) => {
+      setEventDetails(newDetails);
+    });
+
+    const unsubGifts = subscribeToGifts((newGifts) => {
+      setGifts(newGifts);
+      const totalGifts = newGifts.length;
+      const totalUnits = newGifts.reduce((acc, g) => acc + g.totalQuantity, 0);
+      const availableUnits = newGifts.reduce((acc, g) => acc + g.availableQuantity, 0);
+      const chosenUnits = Math.max(0, totalUnits - availableUnits);
+      const completionPercentage = totalUnits > 0 ? Math.round((chosenUnits / totalUnits) * 100) : 0;
+      setStats({ totalGifts, totalUnits, chosenUnits, availableUnits, completionPercentage });
+    });
+
     // Subtle polling every 20 seconds to keep quantities live if guests are using it concurrently
     const interval = setInterval(() => {
       loadData(true);
     }, 20000);
 
-    return () => clearInterval(interval);
+    return () => {
+      unsubEvent();
+      unsubGifts();
+      clearInterval(interval);
+    };
   }, []);
 
   const handleScrollToGifts = () => {

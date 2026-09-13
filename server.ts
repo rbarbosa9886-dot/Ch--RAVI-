@@ -109,9 +109,41 @@ app.get('/api/event', (req, res) => {
 
 app.put('/api/event', verifyAdminAuth, (req, res) => {
   const updates = req.body;
-  db.eventDetails = { ...db.eventDetails, ...updates };
+  db.eventDetails = {
+    ...db.eventDetails,
+    ...updates,
+    isCustomized: true,
+    updatedAt: updates.updatedAt || Date.now()
+  };
   saveDb();
   res.json(db.eventDetails);
+});
+
+// Full state sync (from Admin client persistence)
+app.post('/api/admin/sync-all', verifyAdminAuth, (req, res) => {
+  const { eventDetails, gifts, reservations } = req.body;
+  if (eventDetails) {
+    db.eventDetails = {
+      ...db.eventDetails,
+      ...eventDetails,
+      isCustomized: true,
+      updatedAt: eventDetails.updatedAt || Date.now()
+    };
+  }
+  if (gifts && Array.isArray(gifts) && gifts.length > 0) {
+    db.gifts = gifts.map(g => ({ ...g, isCustomized: true, updatedAt: g.updatedAt || Date.now() }));
+  }
+  if (reservations && Array.isArray(reservations)) {
+    db.reservations = reservations;
+  }
+  saveDb();
+  console.log(`[DB] Synced data from client: ${db.gifts.length} gifts, ${db.reservations.length} reservations.`);
+  res.json({
+    success: true,
+    eventDetails: db.eventDetails,
+    giftsCount: db.gifts.length,
+    reservationsCount: db.reservations.length
+  });
 });
 
 // Gifts List
@@ -136,7 +168,9 @@ app.post('/api/gifts', verifyAdminAuth, (req, res) => {
     availableQuantity: totalQuantity,
     status: 'available',
     createdAt: new Date().toISOString(),
-    suggestedBrand: (suggestedBrand || '').trim() || undefined
+    suggestedBrand: (suggestedBrand || '').trim() || undefined,
+    updatedAt: Date.now(),
+    isCustomized: true
   };
 
   db.gifts.unshift(newGift);
@@ -173,7 +207,9 @@ app.put('/api/gifts/:id', verifyAdminAuth, (req, res) => {
     suggestedBrand: suggestedBrand !== undefined ? suggestedBrand.trim() : existing.suggestedBrand,
     totalQuantity: newTotal,
     availableQuantity: newAvailable,
-    status: newAvailable > 0 ? 'available' : 'depleted'
+    status: newAvailable > 0 ? 'available' : 'depleted',
+    updatedAt: Date.now(),
+    isCustomized: true
   };
 
   db.gifts[giftIndex] = updated;

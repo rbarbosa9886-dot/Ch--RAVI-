@@ -20,6 +20,16 @@ import {
   fetchFullBackup,
   restoreFullBackup
 } from '../api.ts';
+import {
+  autoSaveEventDetails,
+  flushEventAutosave,
+  subscribeToAutosave,
+  getAutosaveStatus,
+  AutosaveInfo,
+  autoSaveSingleGift,
+  autoDeleteGift,
+  STORAGE_KEYS
+} from '../services/storageService.ts';
 import { ImageUploadField } from './ImageUploadField.tsx';
 
 interface AdminModalProps {
@@ -87,9 +97,38 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Autosave status
+  const [autosaveInfo, setAutosaveInfo] = useState<AutosaveInfo>(getAutosaveStatus);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAutosave((info) => {
+      setAutosaveInfo(info);
+    });
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     setEditEvent({ ...eventDetails });
   }, [eventDetails]);
+
+  // Handle close with flush
+  const handleCloseModal = () => {
+    flushEventAutosave(adminToken);
+    onClose();
+  };
+
+  // Immediate centralized field change with debounce API sync
+  const handleEventFieldChange = (field: keyof EventDetails, value: string) => {
+    const updated: EventDetails = {
+      ...editEvent,
+      [field]: value,
+      isCustomized: true,
+      updatedAt: Date.now()
+    };
+    setEditEvent(updated);
+    autoSaveEventDetails(updated, adminToken, { debounceMs: 500 });
+    onEventUpdated();
+  };
 
   // Load reservations when authenticated
   const loadReservations = async (token: string) => {
@@ -235,12 +274,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Save Event Details
   const handleSaveEventDetails = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminToken) return;
     setIsSavingEvent(true);
     try {
-      await updateEventDetails(editEvent, adminToken);
+      const saved = autoSaveEventDetails(editEvent, adminToken, { immediate: true });
+      setEditEvent(saved);
       onEventUpdated();
-      setActionSuccessMessage('Informações do evento atualizadas com sucesso!');
+      setActionSuccessMessage('Informações do evento salvas e sincronizadas com sucesso!');
       setTimeout(() => setActionSuccessMessage(null), 3500);
     } catch (err: any) {
       alert(err.message || 'Erro ao atualizar evento.');
@@ -534,54 +573,73 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           /* AUTHENTICATED ADMIN DASHBOARD */
           <div className="flex flex-col flex-1 overflow-hidden">
             {/* Tabs Header */}
-            <div className="flex border-b border-slate-200 bg-slate-50/80 px-4 pt-2 gap-1 overflow-x-auto shrink-0">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'dashboard'
-                    ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <BarChart2 className="w-4 h-4" />
-                <span>Dashboard</span>
-              </button>
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 pt-2 gap-1 overflow-x-auto shrink-0">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'dashboard'
+                      ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <BarChart2 className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('reservas')}
-                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'reservas'
-                    ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                <span>Reservas ({reservations.filter(r => r.status === 'confirmed').length})</span>
-              </button>
+                <button
+                  onClick={() => setActiveTab('reservas')}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'reservas'
+                      ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Reservas ({reservations.filter(r => r.status === 'confirmed').length})</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('presentes')}
-                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'presentes'
-                    ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <GiftIcon className="w-4 h-4" />
-                <span>Gerenciar Presentes ({gifts.length})</span>
-              </button>
+                <button
+                  onClick={() => setActiveTab('presentes')}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'presentes'
+                      ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <GiftIcon className="w-4 h-4" />
+                  <span>Gerenciar Presentes ({gifts.length})</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('configuracoes')}
-                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'configuracoes'
-                    ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                <span>Configurações, Backup & Reset</span>
-              </button>
+                <button
+                  onClick={() => setActiveTab('configuracoes')}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-xl text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'configuracoes'
+                      ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Configurações, Backup & Reset</span>
+                </button>
+              </div>
+
+              {/* Autosave Status Badge */}
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 mb-1 text-[11px] font-medium rounded-full bg-white border border-slate-200 shadow-xs">
+                {autosaveInfo.status === 'saving' ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
+                    <span className="text-amber-700">Salvando alterações...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="text-slate-600">
+                      Auto-salvo {autosaveInfo.lastSavedFormatted ? `às ${autosaveInfo.lastSavedFormatted}` : 'localmente'}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Scrollable Tab Content */}
@@ -922,10 +980,29 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <div className="space-y-6">
                   {/* Event Details Editor */}
                   <form onSubmit={handleSaveEventDetails} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
-                    <h4 className="font-semibold text-sm text-slate-800 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-[#1E3A8A]" />
-                      Informações do Evento
-                    </h4>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                      <div>
+                        <h4 className="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-[#1E3A8A]" />
+                          Informações do Evento
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Edite os dados do chá de bebê. As alterações são salvas automaticamente enquanto você digita.
+                        </p>
+                      </div>
+
+                      {/* Status indicator */}
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>
+                          {autosaveInfo.status === 'saving'
+                            ? 'Sincronizando...'
+                            : autosaveInfo.lastSavedFormatted
+                            ? `Salvo automaticamente às ${autosaveInfo.lastSavedFormatted}`
+                            : 'Auto-salvamento ativo'}
+                        </span>
+                      </div>
+                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
@@ -933,8 +1010,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <input
                           type="text"
                           value={editEvent.babyName}
-                          onChange={(e) => setEditEvent({ ...editEvent, babyName: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
+                          onChange={(e) => handleEventFieldChange('babyName', e.target.value)}
+                          placeholder="Ex: Ravi"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
                         />
                       </div>
 
@@ -943,8 +1021,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <input
                           type="text"
                           value={editEvent.themeTitle}
-                          onChange={(e) => setEditEvent({ ...editEvent, themeTitle: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
+                          onChange={(e) => handleEventFieldChange('themeTitle', e.target.value)}
+                          placeholder="Ex: Chá de Fraldas do Ravi"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
                         />
                       </div>
 
@@ -953,8 +1032,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <input
                           type="text"
                           value={editEvent.eventDate}
-                          onChange={(e) => setEditEvent({ ...editEvent, eventDate: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
+                          onChange={(e) => handleEventFieldChange('eventDate', e.target.value)}
+                          placeholder="Ex: 26 de Abril de 2026"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
                         />
                       </div>
 
@@ -963,18 +1043,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <input
                           type="text"
                           value={editEvent.eventTime}
-                          onChange={(e) => setEditEvent({ ...editEvent, eventTime: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
+                          onChange={(e) => handleEventFieldChange('eventTime', e.target.value)}
+                          placeholder="Ex: 15h00 às 19h00"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
                         />
                       </div>
 
                       <div>
-                        <label className="block font-medium text-slate-700 mb-1">Local</label>
+                        <label className="block font-medium text-slate-700 mb-1">Local / Nome do Espaço</label>
                         <input
                           type="text"
                           value={editEvent.eventLocation}
-                          onChange={(e) => setEditEvent({ ...editEvent, eventLocation: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
+                          onChange={(e) => handleEventFieldChange('eventLocation', e.target.value)}
+                          placeholder="Ex: Espaço Bem Estar"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
                         />
                       </div>
 
@@ -983,30 +1065,71 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <input
                           type="text"
                           value={editEvent.eventAddress}
-                          onChange={(e) => setEditEvent({ ...editEvent, eventAddress: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
+                          onChange={(e) => handleEventFieldChange('eventAddress', e.target.value)}
+                          placeholder="Ex: Rua das Flores, 123 - Jardim Primavera"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-medium text-slate-700 mb-1">Chave PIX (Para Presentes em Dinheiro)</label>
+                        <input
+                          type="text"
+                          value={editEvent.pixKey || ''}
+                          onChange={(e) => handleEventFieldChange('pixKey', e.target.value)}
+                          placeholder="Ex: seu-email@exemplo.com ou telefone"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-medium text-slate-700 mb-1">Nome do Titular da Chave PIX</label>
+                        <input
+                          type="text"
+                          value={editEvent.pixName || ''}
+                          onChange={(e) => handleEventFieldChange('pixName', e.target.value)}
+                          placeholder="Ex: Maria & João"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
                         />
                       </div>
 
                       <div className="sm:col-span-2">
-                        <label className="block font-medium text-slate-700 mb-1">Frase de Abertura</label>
+                        <label className="block font-medium text-slate-700 mb-1">Frase de Abertura / Subtítulo</label>
                         <input
                           type="text"
                           value={editEvent.subtitle}
-                          onChange={(e) => setEditEvent({ ...editEvent, subtitle: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
+                          onChange={(e) => handleEventFieldChange('subtitle', e.target.value)}
+                          placeholder="Ex: Uma nova história de amor está prestes a começar..."
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block font-medium text-slate-700 mb-1">Texto de Boas-Vindas aos Convidados</label>
+                        <textarea
+                          rows={2}
+                          value={editEvent.introText || ''}
+                          onChange={(e) => handleEventFieldChange('introText', e.target.value)}
+                          placeholder="Mensagem carinhosa para os convidados..."
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]/20"
                         />
                       </div>
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSavingEvent}
-                      className="px-5 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 hover:bg-[#182f70] transition-colors cursor-pointer"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      {isSavingEvent ? 'Salvando...' : 'Salvar Alterações do Evento'}
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                      <button
+                        type="submit"
+                        disabled={isSavingEvent}
+                        className="px-5 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#182f70] transition-colors cursor-pointer"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {isSavingEvent ? 'Sincronizando...' : 'Confirmar & Salvar Imediatamente'}
+                      </button>
+
+                      <span className="text-[11px] text-slate-500 text-center sm:text-right">
+                        💡 Suas alterações são salvas automaticamente no armazenamento persistente.
+                      </span>
+                    </div>
                   </form>
 
                   {/* SEÇÃO 1: SALVAR INFORMAÇÕES & BACKUP COMPLETO */}

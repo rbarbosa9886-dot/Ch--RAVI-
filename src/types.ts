@@ -12,6 +12,8 @@ export interface Gift {
   createdAt: string;
   iconName?: string;
   suggestedBrand?: string;
+  updatedAt?: number;
+  isCustomized?: boolean;
 }
 
 export interface Reservation {
@@ -37,6 +39,8 @@ export interface EventDetails {
   mapQuery?: string;
   pixKey?: string;
   pixName?: string;
+  updatedAt?: number;
+  isCustomized?: boolean;
 }
 
 export interface DashboardStats {

@@ -10,7 +10,9 @@
       "availableQuantity": 3,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Pampers Premium Care ou Huggies"
+      "suggestedBrand": "Pampers Premium Care ou Huggies",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-fralda-p",
@@ -22,7 +24,9 @@
       "availableQuantity": 6,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Pampers Confort Sec ou Huggies Supreme Care"
+      "suggestedBrand": "Pampers Confort Sec ou Huggies Supreme Care",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-fralda-m",
@@ -34,7 +38,9 @@
       "availableQuantity": 7,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Pampers Confort Sec / Pants"
+      "suggestedBrand": "Pampers Confort Sec / Pants",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-fralda-g",
@@ -46,7 +52,9 @@
       "availableQuantity": 6,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Huggies ou Pampers"
+      "suggestedBrand": "Huggies ou Pampers",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-fralda-xg",
@@ -58,7 +66,9 @@
       "availableQuantity": 4,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Pampers ou Babysec Ultra"
+      "suggestedBrand": "Pampers ou Babysec Ultra",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-lencos",
@@ -70,7 +80,9 @@
       "availableQuantity": 6,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Huggies Puro e Natural ou Pampers Splash"
+      "suggestedBrand": "Huggies Puro e Natural ou Pampers Splash",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-pomada",
@@ -82,7 +94,9 @@
       "availableQuantity": 5,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Desitin azul, Bepantol Baby ou Mustela"
+      "suggestedBrand": "Desitin azul, Bepantol Baby ou Mustela",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-kit-higiene",
@@ -94,7 +108,9 @@
       "availableQuantity": 2,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Lillo ou Chicco"
+      "suggestedBrand": "Lillo ou Chicco",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-aspirador-nasal",
@@ -106,7 +122,9 @@
       "availableQuantity": 1,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "NoseFrida ou similar"
+      "suggestedBrand": "NoseFrida ou similar",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-sabonete",
@@ -118,7 +136,9 @@
       "availableQuantity": 4,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Granado Bebê Tradicional ou Mustela"
+      "suggestedBrand": "Granado Bebê Tradicional ou Mustela",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-toalha-capuz",
@@ -130,7 +150,9 @@
       "availableQuantity": 2,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Algodão macio, cores azul ou neutras"
+      "suggestedBrand": "Algodão macio, cores azul ou neutras",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-banheira",
@@ -142,7 +164,9 @@
       "availableQuantity": 1,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Burigotto ou Galzerano"
+      "suggestedBrand": "Burigotto ou Galzerano",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-bodies-manga-curta",
@@ -154,7 +178,9 @@
       "availableQuantity": 3,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Tamanho P ou M, tons suaves"
+      "suggestedBrand": "Tamanho P ou M, tons suaves",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-macacao-explorador",
@@ -166,7 +192,9 @@
       "availableQuantity": 2,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Tamanho M (3 a 6 meses)"
+      "suggestedBrand": "Tamanho M (3 a 6 meses)",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-kit-meias-lupinhas",
@@ -178,7 +206,9 @@
       "availableQuantity": 3,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Tamanho RN / 0-3 meses"
+      "suggestedBrand": "Tamanho RN / 0-3 meses",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-ninho-redutor",
@@ -190,7 +220,9 @@
       "availableQuantity": 1,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Estampa estrelas / tons azul e bege"
+      "suggestedBrand": "Estampa estrelas / tons azul e bege",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-mantinha-plush",
@@ -202,7 +234,9 @@
       "availableQuantity": 3,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Toque de seda / antialérgico"
+      "suggestedBrand": "Toque de seda / antialérgico",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-jogo-lencol",
@@ -214,7 +248,9 @@
       "availableQuantity": 2,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Tons off-white, bege ou azul céu"
+      "suggestedBrand": "Tons off-white, bege ou azul céu",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-mochila-maternidade",
@@ -226,7 +262,9 @@
       "availableQuantity": 1,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Cor azul-marinho ou cinza"
+      "suggestedBrand": "Cor azul-marinho ou cinza",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-mordedor-sensorial",
@@ -238,7 +276,9 @@
       "availableQuantity": 2,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Buba ou Fisher-Price"
+      "suggestedBrand": "Buba ou Fisher-Price",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     },
     {
       "id": "gift-almofada-amamentacao",
@@ -250,10 +290,22 @@
       "availableQuantity": 1,
       "status": "available",
       "createdAt": "2026-09-12T10:00:00.000Z",
-      "suggestedBrand": "Capa removível e lavável"
+      "suggestedBrand": "Capa removível e lavável",
+      "isCustomized": true,
+      "updatedAt": 1789294787679
     }
   ],
   "reservations": [
+    {
+      "id": "res-1789296519777-1th1r",
+      "giftId": "gift-fralda-rn",
+      "giftName": "Fraldas tamanho RN",
+      "guestName": "Tia Mariana",
+      "message": "Ansiosa para ver o Ravi!",
+      "quantity": 1,
+      "createdAt": "2026-09-13T10:48:39.777Z",
+      "status": "cancelled"
+    },
     {
       "id": "res-1789247526965-hl4pb",
       "giftId": "gift-fralda-rn",

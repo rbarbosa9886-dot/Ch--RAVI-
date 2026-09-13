@@ -18,7 +18,9 @@ import {
   resetDemoData,
   clearAllReservations,
   fetchFullBackup,
-  restoreFullBackup
+  restoreFullBackup,
+  fetchSupabaseStatus,
+  triggerSupabaseMigration
 } from '../api.ts';
 import {
   autoSaveEventDetails,
@@ -90,6 +92,34 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   // Supabase SQL copied state
   const [sqlCopied, setSqlCopied] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<any>(null);
+  const [isMigratingSupabase, setIsMigratingSupabase] = useState(false);
+  const [migrationFeedback, setMigrationFeedback] = useState<string | null>(null);
+
+  // Check Supabase status when settings tab opens
+  useEffect(() => {
+    if (adminToken && activeTab === 'settings') {
+      fetchSupabaseStatus(adminToken).then(setSupabaseStatus).catch(() => {});
+    }
+  }, [adminToken, activeTab]);
+
+  const handleManualMigrateSupabase = async () => {
+    if (!adminToken) return;
+    setIsMigratingSupabase(true);
+    setMigrationFeedback(null);
+    try {
+      const res = await triggerSupabaseMigration(adminToken);
+      setMigrationFeedback(res.message || 'Sincronização com Supabase concluída!');
+      onGiftsUpdated();
+      onEventUpdated();
+      const updatedStatus = await fetchSupabaseStatus(adminToken);
+      setSupabaseStatus(updatedStatus);
+    } catch (err: any) {
+      setMigrationFeedback(`Erro: ${err.message || 'Falha ao sincronizar com Supabase'}`);
+    } finally {
+      setIsMigratingSupabase(false);
+    }
+  };
 
   // Backup & Reset states
   const [isProcessingBackup, setIsProcessingBackup] = useState(false);
@@ -277,10 +307,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     e.preventDefault();
     setIsSavingEvent(true);
     try {
-      const saved = autoSaveEventDetails(editEvent, adminToken, { immediate: true });
+      const saved = await updateEventDetails(editEvent, adminToken || '');
       setEditEvent(saved);
       onEventUpdated();
-      setActionSuccessMessage('Informações do evento salvas e sincronizadas com sucesso!');
+      setActionSuccessMessage('Informações do evento salvas e sincronizadas com sucesso no Supabase!');
       setTimeout(() => setActionSuccessMessage(null), 3500);
     } catch (err: any) {
       alert(err.message || 'Erro ao atualizar evento.');
@@ -966,6 +996,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           <h5 className="font-bold text-xs text-slate-900 truncate mt-1">{g.name}</h5>
                           <p className="text-[11px] text-slate-500 line-clamp-1">{g.description}</p>
                           
+                          {/* Stock Breakdown: Total, Reservado, Disponível */}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[10px]">
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded font-medium">
+                              Total: <strong className="font-bold text-slate-900">{g.totalQuantity}</strong>
+                            </span>
+                            <span className="px-1.5 py-0.5 bg-amber-50 text-amber-800 rounded font-medium border border-amber-200/60">
+                              Reservado: <strong className="font-bold">{Math.max(0, g.totalQuantity - g.availableQuantity)}</strong>
+                            </span>
+                            <span className={`px-1.5 py-0.5 rounded font-medium border ${g.availableQuantity > 0 ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60' : 'bg-rose-50 text-rose-800 border-rose-200/60'}`}>
+                              Disponível: <strong className="font-bold">{g.availableQuantity}</strong>
+                            </span>
+                          </div>
+                          
                           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                             <button
                               onClick={() => handleOpenEditGift(g)}
@@ -1309,30 +1352,60 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Supabase Integration Guide */}
-                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-3">
-                    <div className="flex items-center justify-between">
+                  {/* Supabase Integration Card */}
+                  <div className="bg-gradient-to-br from-slate-50 to-sky-50/40 p-5 rounded-2xl border border-sky-200/80 text-xs text-slate-700 space-y-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">⚡</span>
-                        <h4 className="font-bold text-slate-900">Integração Supabase (SQL Script)</h4>
+                        <div className="w-7 h-7 rounded-lg bg-[#1E3A8A] text-white flex items-center justify-center font-bold text-sm">
+                          ⚡
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm">Banco de Dados Supabase (Fonte Oficial)</h4>
+                          <p className="text-[11px] text-slate-500">Tabelas: categories, gifts, reservations, event_details</p>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `-- Execute o arquivo supabase-schema.sql no SQL Editor do seu projeto Supabase para criar as tabelas e a stored procedure atômica make_reservation().`
-                          );
-                          setSqlCopied(true);
-                          setTimeout(() => setSqlCopied(false), 2500);
-                        }}
-                        className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 cursor-pointer"
-                      >
-                        {sqlCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{sqlCopied ? 'Copiado!' : 'Copiar Dica'}</span>
-                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 ${
+                          supabaseStatus?.isConfigured
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${supabaseStatus?.isConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                          {supabaseStatus?.isConfigured ? 'Supabase Conectado' : 'Aguardando Variáveis Supabase'}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-slate-600 leading-relaxed">
-                      O aplicativo já está rodando com persistência em tempo real e bloqueio atômico de concorrência. Se desejar conectar seu próprio projeto Supabase na nuvem, adicione as chaves <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">SUPABASE_URL</code> e <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">SUPABASE_ANON_KEY</code> no arquivo de ambiente. O script completo está salvo em <code className="font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200">/supabase-schema.sql</code>.
+
+                    <p className="text-slate-600 leading-relaxed text-[11px]">
+                      A persistência de dados está estruturada no fluxo <strong>Frontend → API/Backend → Supabase</strong> com reservas atômicas (PL/pgSQL).
+                      {supabaseStatus?.isConfigured
+                        ? ' As credenciais SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY estão ativas no servidor.'
+                        : ' Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no ambiente (Vercel ou .env) para apontar para seu banco oficial.'}
                     </p>
+
+                    {supabaseStatus?.isConfigured && (
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px]">
+                        <div>
+                          <p className="font-semibold text-slate-800">Sincronização com o Banco de Dados</p>
+                          <p className="text-slate-500">Migre ou atualize os dados existentes para o Supabase com 1 clique.</p>
+                        </div>
+                        <button
+                          onClick={handleManualMigrateSupabase}
+                          disabled={isMigratingSupabase}
+                          className="px-3.5 py-2 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-xs shrink-0"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isMigratingSupabase ? 'animate-spin' : ''}`} />
+                          {isMigratingSupabase ? 'Sincronizando...' : 'Sincronizar com Supabase'}
+                        </button>
+                      </div>
+                    )}
+
+                    {migrationFeedback && (
+                      <div className="p-2.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-medium">
+                        {migrationFeedback}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

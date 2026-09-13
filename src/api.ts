@@ -3,86 +3,150 @@ import { INITIAL_GIFTS, INITIAL_RESERVATIONS, DEFAULT_EVENT_DETAILS } from './da
 import {
   getStoredEventDetails,
   writeStoredEventDetailsLocal,
-  autoSaveEventDetails,
   getStoredGifts,
   writeStoredGiftsLocal,
-  autoSaveGifts,
-  autoSaveSingleGift,
-  autoDeleteGift,
   STORAGE_KEYS
 } from './services/storageService.ts';
 
 const BASE_URL = '/api';
 
+/**
+ * Fetch event details from the backend (Supabase is the authority).
+ * Updates local cache for instant offline availability.
+ */
 export async function fetchEventDetails(): Promise<EventDetails> {
-  const localCustom = getStoredEventDetails();
   try {
     const res = await fetch(`${BASE_URL}/event`);
     if (!res.ok) throw new Error('Falha ao carregar detalhes do evento');
     const data: EventDetails = await res.json();
-
-    // If server has customized data, sync it locally
-    if (data.isCustomized) {
+    if (data && typeof data === 'object') {
       writeStoredEventDetailsLocal(data);
       return data;
     }
-
-    // If the server returned default template (e.g. cold container start)
-    // but the client previously customized it, keep the user's custom details and re-sync!
-    if (localCustom && localCustom.isCustomized) {
-      autoSaveEventDetails(localCustom, null, { immediate: true });
-      return localCustom;
-    }
-
-    writeStoredEventDetailsLocal(data);
-    return data;
   } catch (err) {
-    return localCustom || DEFAULT_EVENT_DETAILS;
+    console.warn('[API] Could not reach /api/event, using local cache:', err);
   }
+  return getStoredEventDetails() || DEFAULT_EVENT_DETAILS;
 }
 
+/**
+ * Persist event details through backend to Supabase.
+ */
 export async function updateEventDetails(updates: Partial<EventDetails>, token: string): Promise<EventDetails> {
-  return autoSaveEventDetails(updates, token, { immediate: true });
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
+  
+  const res = await fetch(`${BASE_URL}/event`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${effectiveToken}`,
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Erro ao atualizar dados do evento.');
+  }
+
+  const saved: EventDetails = await res.json();
+  writeStoredEventDetailsLocal(saved);
+  return saved;
 }
 
+/**
+ * Fetch all gifts from the backend (Supabase is the authority).
+ * Updates local cache for smooth offline fallback.
+ */
 export async function fetchGifts(): Promise<Gift[]> {
-  const localGifts = getStoredGifts();
   try {
     const res = await fetch(`${BASE_URL}/gifts`);
     if (!res.ok) throw new Error('Falha ao carregar presentes');
     const serverGifts: Gift[] = await res.json();
-
-    const serverHasCustom = serverGifts.some(g => g.isCustomized);
-
-    // If server has custom gifts, update local
-    if (serverHasCustom) {
+    if (Array.isArray(serverGifts) && serverGifts.length > 0) {
       writeStoredGiftsLocal(serverGifts);
       return serverGifts;
     }
-
-    // If server returned default template but client has customized gifts list, re-sync to server
-    if (localGifts && localGifts.some(g => g.isCustomized)) {
-      autoSaveGifts(localGifts, null);
-      return localGifts;
-    }
-
-    writeStoredGiftsLocal(serverGifts);
-    return serverGifts;
   } catch (err) {
-    return localGifts.length > 0 ? localGifts : INITIAL_GIFTS;
+    console.warn('[API] Could not reach /api/gifts, using local cache:', err);
   }
+  const cached = getStoredGifts();
+  return cached.length > 0 ? cached : INITIAL_GIFTS;
 }
 
+/**
+ * Create a new gift directly in Supabase via backend API.
+ */
 export async function createGift(giftData: Partial<Gift>, token: string): Promise<Gift> {
-  return autoSaveSingleGift(giftData, token);
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
+
+  const res = await fetch(`${BASE_URL}/gifts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${effectiveToken}`,
+    },
+    body: JSON.stringify(giftData),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Erro ao criar presente.');
+  }
+
+  const newGift: Gift = await res.json();
+  const current = getStoredGifts();
+  writeStoredGiftsLocal([newGift, ...current]);
+  return newGift;
 }
 
+/**
+ * Update an existing gift in Supabase via backend API.
+ */
 export async function updateGift(id: string, giftData: Partial<Gift>, token: string): Promise<Gift> {
-  return autoSaveSingleGift(giftData, token, id);
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
+
+  const res = await fetch(`${BASE_URL}/gifts/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${effectiveToken}`,
+    },
+    body: JSON.stringify(giftData),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Erro ao atualizar presente.');
+  }
+
+  const updated: Gift = await res.json();
+  const current = getStoredGifts();
+  const updatedList = current.map((g) => (g.id === id ? updated : g));
+  writeStoredGiftsLocal(updatedList);
+  return updated;
 }
 
+/**
+ * Delete a gift in Supabase via backend API.
+ */
 export async function deleteGift(id: string, token: string): Promise<void> {
-  return autoDeleteGift(id, token);
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
+
+  const res = await fetch(`${BASE_URL}/gifts/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${effectiveToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Erro ao excluir presente.');
+  }
+
+  const current = getStoredGifts();
+  writeStoredGiftsLocal(current.filter((g) => g.id !== id));
 }
 
 export interface ReservationResult {
@@ -93,6 +157,9 @@ export interface ReservationResult {
   code?: string;
 }
 
+/**
+ * Reserve gift with multi-unit support & atomic concurrency protection.
+ */
 export async function reserveGift(
   giftId: string,
   guestName: string,
@@ -100,17 +167,30 @@ export async function reserveGift(
   quantity: number = 1
 ): Promise<ReservationResult> {
   const requestedQty = Math.max(1, Math.floor(quantity) || 1);
+
   try {
     const res = await fetch(`${BASE_URL}/reservations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ giftId, guestName, message, quantity: requestedQty })
+      body: JSON.stringify({
+        giftId,
+        guestName: guestName.trim(),
+        message: message?.trim() || undefined,
+        quantity: requestedQty
+      })
     });
 
-    if (res.ok) {
-      const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.success) {
+      // Update local gifts cache with the server's updated stock
+      if (data.updatedGift) {
+        const current = getStoredGifts();
+        const updated = current.map((g) => (g.id === giftId ? { ...g, ...data.updatedGift } : g));
+        writeStoredGiftsLocal(updated);
+      }
       return {
         success: true,
         reservation: data.reservation,
@@ -118,69 +198,33 @@ export async function reserveGift(
       };
     }
 
-    const data = await res.json().catch(() => ({}));
     if (res.status === 400 || res.status === 404 || res.status === 409) {
-      if (data.error) {
-        return {
-          success: false,
-          error: data.error,
-          code: data.code
-        };
-      }
+      return {
+        success: false,
+        error: data.error || 'Quantidade indisponível.',
+        code: data.code || 'INSUFFICIENT_STOCK'
+      };
     }
-    throw new Error('Falha no servidor');
+
+    throw new Error(data.error || 'Falha no servidor ao processar reserva');
   } catch (err: any) {
-    // Client-side fallback if backend is offline or static
-    const gifts = await fetchGifts();
-    const gift = gifts.find(g => g.id === giftId);
-    if (!gift || gift.availableQuantity <= 0) {
-      return {
-        success: false,
-        error: 'Que pena! Este item acabou de ser escolhido por outro convidado.',
-        code: 'OUT_OF_STOCK'
-      };
-    }
-
-    if (requestedQty > gift.availableQuantity) {
-      return {
-        success: false,
-        error: `Que pena! Apenas ${gift.availableQuantity} ${gift.availableQuantity === 1 ? 'unidade está disponível' : 'unidades estão disponíveis'} no momento.`,
-        code: 'INSUFFICIENT_STOCK'
-      };
-    }
-
-    const qtyToReserve = Math.min(requestedQty, gift.availableQuantity);
-    gift.availableQuantity = Math.max(0, gift.availableQuantity - qtyToReserve);
-    if (gift.availableQuantity === 0) gift.status = 'depleted';
-
-    const newRes: Reservation = {
-      id: 'res-' + Date.now(),
-      giftId: gift.id,
-      giftName: gift.name,
-      guestName: guestName.trim(),
-      message: message?.trim(),
-      quantity: qtyToReserve,
-      createdAt: new Date().toISOString(),
-      status: 'confirmed'
-    };
-
-    writeStoredGiftsLocal(gifts);
-    const cachedRes = JSON.parse(localStorage.getItem('ravi_reservations_backup') || '[]');
-    localStorage.setItem('ravi_reservations_backup', JSON.stringify([newRes, ...cachedRes]));
-
+    console.error('[API] Reservation error:', err);
     return {
-      success: true,
-      reservation: newRes,
-      updatedGift: gift
+      success: false,
+      error: err.message || 'Erro de conexão ao processar reserva. Tente novamente.'
     };
   }
 }
 
+/**
+ * Fetch all reservations from the Supabase backend.
+ */
 export async function fetchAdminReservations(token: string): Promise<Reservation[]> {
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
   try {
     const res = await fetch(`${BASE_URL}/admin/reservations`, {
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${effectiveToken}`
       }
     });
     if (res.ok) {
@@ -188,36 +232,43 @@ export async function fetchAdminReservations(token: string): Promise<Reservation
       localStorage.setItem('ravi_reservations_backup', JSON.stringify(data));
       return data;
     }
-    throw new Error('Falha ao carregar');
   } catch (err) {
-    const cached = localStorage.getItem('ravi_reservations_backup');
-    if (cached) {
-      try { return JSON.parse(cached); } catch {}
-    }
-    return INITIAL_RESERVATIONS;
+    console.warn('[API] Could not fetch reservations from server:', err);
   }
+
+  const cached = localStorage.getItem('ravi_reservations_backup');
+  if (cached) {
+    try { return JSON.parse(cached); } catch {}
+  }
+  return INITIAL_RESERVATIONS;
 }
 
+/**
+ * Cancel a reservation and restore units to stock in Supabase.
+ */
 export async function cancelReservation(id: string, token: string): Promise<{ success: boolean; updatedGift?: Gift }> {
-  try {
-    const res = await fetch(`${BASE_URL}/admin/reservations/${id}/cancel`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    if (res.ok) {
-      return res.json();
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
+
+  const res = await fetch(`${BASE_URL}/admin/reservations/${id}/cancel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${effectiveToken}`
     }
-    throw new Error('Falha no servidor');
-  } catch (err) {
-    const cachedRes: Reservation[] = JSON.parse(localStorage.getItem('ravi_reservations_backup') || '[]');
-    const updated = cachedRes.map(r => r.id === id ? { ...r, status: 'cancelled' as const } : r);
-    localStorage.setItem('ravi_reservations_backup', JSON.stringify(updated));
-    return { success: true };
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Erro ao cancelar reserva.');
   }
+
+  // Refresh fresh gifts and reservations from server
+  const freshGifts = await fetchGifts();
+  return { success: true, updatedGift: freshGifts.find(g => g.id === id) };
 }
 
+/**
+ * Admin Login
+ */
 export async function adminLogin(password: string): Promise<{ success: boolean; token: string }> {
   const cleanPass = (password || '').trim();
   if (!cleanPass) {
@@ -232,14 +283,16 @@ export async function adminLogin(password: string): Promise<{ success: boolean; 
     });
 
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      localStorage.setItem(STORAGE_KEYS.ADMIN_TOKEN, data.token);
+      return data;
     }
 
-    // If server responded with error
     const data = await res.json().catch(() => ({}));
 
-    // If user provided Ravi2026 (case-insensitive for convenience)
+    // Convenient local fallback for Ravi2026
     if (cleanPass.toLowerCase() === 'ravi2026') {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_TOKEN, 'authenticated-ravi-admin');
       return {
         success: true,
         token: 'authenticated-ravi-admin'
@@ -248,8 +301,8 @@ export async function adminLogin(password: string): Promise<{ success: boolean; 
 
     throw new Error(data.error || 'Senha incorreta. A senha é Ravi2026.');
   } catch (err: any) {
-    // If network error, 404 (static deployment), or fetch failed
     if (cleanPass.toLowerCase() === 'ravi2026') {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_TOKEN, 'authenticated-ravi-admin');
       return {
         success: true,
         token: 'authenticated-ravi-admin'
@@ -259,31 +312,68 @@ export async function adminLogin(password: string): Promise<{ success: boolean; 
   }
 }
 
+/**
+ * Fetch dashboard stats computed by the backend/Supabase.
+ */
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   try {
     const res = await fetch(`${BASE_URL}/admin/stats`);
     if (res.ok) return await res.json();
-    throw new Error('Falha ao obter');
   } catch (err) {
-    const gifts = await fetchGifts();
-    const totalGifts = gifts.length;
-    const totalUnits = gifts.reduce((acc, g) => acc + g.totalQuantity, 0);
-    const availableUnits = gifts.reduce((acc, g) => acc + g.availableQuantity, 0);
-    const chosenUnits = Math.max(0, totalUnits - availableUnits);
-    const completionPercentage = totalUnits > 0 ? Math.round((chosenUnits / totalUnits) * 100) : 0;
-    return { totalGifts, totalUnits, chosenUnits, availableUnits, completionPercentage };
+    // fallback computation
   }
+
+  const gifts = await fetchGifts();
+  const totalGifts = gifts.length;
+  const totalUnits = gifts.reduce((acc, g) => acc + g.totalQuantity, 0);
+  const availableUnits = gifts.reduce((acc, g) => acc + g.availableQuantity, 0);
+  const chosenUnits = Math.max(0, totalUnits - availableUnits);
+  const completionPercentage = totalUnits > 0 ? Math.round((chosenUnits / totalUnits) * 100) : 0;
+  return { totalGifts, totalUnits, chosenUnits, availableUnits, completionPercentage };
 }
 
+/**
+ * Check Supabase connection status on backend
+ */
+export async function fetchSupabaseStatus(token: string): Promise<any> {
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
+  try {
+    const res = await fetch(`${BASE_URL}/admin/supabase-status`, {
+      headers: { Authorization: `Bearer ${effectiveToken}` },
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {}
+  return { isConfigured: false, error: 'Não foi possível verificar status' };
+}
+
+/**
+ * Trigger explicit data migration into Supabase
+ */
+export async function triggerSupabaseMigration(token: string): Promise<any> {
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
+  const res = await fetch(`${BASE_URL}/admin/migrate-to-supabase`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${effectiveToken}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Erro na migração');
+  }
+  return await res.json();
+}
+
+/**
+ * Reset Demo Data
+ */
 export async function resetDemoData(token: string): Promise<void> {
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
   try {
     await fetch(`${BASE_URL}/admin/reset-demo`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${effectiveToken}` }
     });
-  } catch (err) {
-    // ignore
-  }
+  } catch (err) {}
+
   localStorage.removeItem(STORAGE_KEYS.EVENT);
   localStorage.removeItem(STORAGE_KEYS.EVENT_CACHED);
   localStorage.removeItem(STORAGE_KEYS.GIFTS);
@@ -294,22 +384,25 @@ export async function resetDemoData(token: string): Promise<void> {
   writeStoredGiftsLocal(INITIAL_GIFTS);
 }
 
+/**
+ * Clear All Reservations
+ */
 export async function clearAllReservations(token: string): Promise<{ success: boolean; message: string }> {
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
   try {
     const res = await fetch(`${BASE_URL}/admin/clear-reservations`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${effectiveToken}` }
     });
     if (res.ok) {
       const data = await res.json();
       localStorage.removeItem('ravi_reservations_backup');
+      const fresh = await fetchGifts();
+      writeStoredGiftsLocal(fresh);
       return data;
     }
-  } catch (err) {
-    // fallback
-  }
+  } catch (err) {}
 
-  // Local fallback: clear reservations and reset available quantities of current gifts
   const currentGifts = await fetchGifts();
   const resetGifts = currentGifts.map(g => ({
     ...g,
@@ -324,6 +417,9 @@ export async function clearAllReservations(token: string): Promise<{ success: bo
   };
 }
 
+/**
+ * Export full backup
+ */
 export async function fetchFullBackup(token: string): Promise<{
   appName: string;
   backupDate: string;
@@ -331,16 +427,15 @@ export async function fetchFullBackup(token: string): Promise<{
   gifts: Gift[];
   reservations: Reservation[];
 }> {
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
   try {
     const res = await fetch(`${BASE_URL}/admin/backup`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${effectiveToken}` }
     });
     if (res.ok) {
       return await res.json();
     }
-  } catch (err) {
-    // fallback
-  }
+  } catch (err) {}
 
   const [eventDetails, gifts, reservations] = await Promise.all([
     fetchEventDetails(),
@@ -357,13 +452,17 @@ export async function fetchFullBackup(token: string): Promise<{
   };
 }
 
+/**
+ * Restore full backup
+ */
 export async function restoreFullBackup(backupData: any, token: string): Promise<{ success: boolean; message: string }> {
+  const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
   try {
     const res = await fetch(`${BASE_URL}/admin/restore-backup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${effectiveToken}`
       },
       body: JSON.stringify(backupData)
     });
@@ -373,9 +472,7 @@ export async function restoreFullBackup(backupData: any, token: string): Promise
       if (backupData.gifts) writeStoredGiftsLocal(backupData.gifts);
       return data;
     }
-  } catch (err) {
-    // fallback
-  }
+  } catch (err) {}
 
   if (backupData.gifts && Array.isArray(backupData.gifts)) {
     writeStoredGiftsLocal(backupData.gifts);

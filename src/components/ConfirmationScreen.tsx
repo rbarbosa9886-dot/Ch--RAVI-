@@ -28,8 +28,11 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
     }
   }, []);
 
+  const qty = reservation.quantity || 1;
+
   const handleShareConfirmation = () => {
-    const text = `Oi! Reservei o presente "${reservation.giftName}" para o Chá de Fraldas do Ravi! 💙👶 Mal posso esperar pelo evento!`;
+    const qtyText = qty > 1 ? `${qty} unidades do presente` : 'o presente';
+    const text = `Oi! Reservei ${qtyText} "${reservation.giftName}" para o Chá de Fraldas do Ravi! 💙👶 Mal posso esperar pelo evento!`;
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -65,9 +68,18 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
 
           {/* Reserved Item Card */}
           <div className="bg-[#FAF9F6] rounded-2xl p-4 border border-slate-200/90 text-left mb-6 shadow-2xs">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              Item escolhido
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Item escolhido
+              </p>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                qty > 1 
+                  ? 'bg-sky-100 text-sky-800 border border-sky-200' 
+                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+              }`}>
+                {qty} {qty === 1 ? 'unidade' : 'unidades'}
+              </span>
+            </div>
             <p className="font-serif-title font-bold text-slate-800 text-base">
               {reservation.giftName}
             </p>

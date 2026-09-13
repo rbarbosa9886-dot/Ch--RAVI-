@@ -93,14 +93,20 @@ export interface ReservationResult {
   code?: string;
 }
 
-export async function reserveGift(giftId: string, guestName: string, message?: string): Promise<ReservationResult> {
+export async function reserveGift(
+  giftId: string,
+  guestName: string,
+  message?: string,
+  quantity: number = 1
+): Promise<ReservationResult> {
+  const requestedQty = Math.max(1, Math.floor(quantity) || 1);
   try {
     const res = await fetch(`${BASE_URL}/reservations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ giftId, guestName, message })
+      body: JSON.stringify({ giftId, guestName, message, quantity: requestedQty })
     });
 
     if (res.ok) {
@@ -135,7 +141,16 @@ export async function reserveGift(giftId: string, guestName: string, message?: s
       };
     }
 
-    gift.availableQuantity = Math.max(0, gift.availableQuantity - 1);
+    if (requestedQty > gift.availableQuantity) {
+      return {
+        success: false,
+        error: `Que pena! Apenas ${gift.availableQuantity} ${gift.availableQuantity === 1 ? 'unidade está disponível' : 'unidades estão disponíveis'} no momento.`,
+        code: 'INSUFFICIENT_STOCK'
+      };
+    }
+
+    const qtyToReserve = Math.min(requestedQty, gift.availableQuantity);
+    gift.availableQuantity = Math.max(0, gift.availableQuantity - qtyToReserve);
     if (gift.availableQuantity === 0) gift.status = 'depleted';
 
     const newRes: Reservation = {
@@ -144,12 +159,12 @@ export async function reserveGift(giftId: string, guestName: string, message?: s
       giftName: gift.name,
       guestName: guestName.trim(),
       message: message?.trim(),
-      quantity: 1,
+      quantity: qtyToReserve,
       createdAt: new Date().toISOString(),
       status: 'confirmed'
     };
 
-    localStorage.setItem('ravi_cached_gifts', JSON.stringify(gifts));
+    writeStoredGiftsLocal(gifts);
     const cachedRes = JSON.parse(localStorage.getItem('ravi_reservations_backup') || '[]');
     localStorage.setItem('ravi_reservations_backup', JSON.stringify([newRes, ...cachedRes]));
 

@@ -252,8 +252,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Cancel Reservation
   const handleCancelReservation = async (reservation: Reservation) => {
     if (!adminToken) return;
+    const qtyText = reservation.quantity > 1 ? `${reservation.quantity} unidades voltarão` : '1 unidade voltará';
     const confirmCancel = window.confirm(
-      `Deseja cancelar a reserva de "${reservation.guestName}" para "${reservation.giftName}"? A unidade voltará automaticamente para o estoque disponível.`
+      `Deseja cancelar a reserva de "${reservation.guestName}" para "${reservation.giftName}"? As ${qtyText} automaticamente para o estoque disponível.`
     );
     if (!confirmCancel) return;
 
@@ -898,7 +899,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                     disabled={cancellingId === res.id}
                                     className="text-rose-600 hover:text-rose-800 font-semibold text-[11px] hover:underline cursor-pointer"
                                   >
-                                    {cancellingId === res.id ? 'Liberando...' : 'Cancelar & Liberar Unidade'}
+                                    {cancellingId === res.id
+                                      ? 'Liberando...'
+                                      : `Cancelar & Liberar ${res.quantity > 1 ? `${res.quantity} Unidades` : 'Unidade'}`}
                                   </button>
                                 )}
                               </td>

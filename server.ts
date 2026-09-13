@@ -235,11 +235,13 @@ app.delete('/api/gifts/:id', verifyAdminAuth, (req, res) => {
 // Strict concurrency check
 // ------------------------------------
 app.post('/api/reservations', async (req, res) => {
-  const { giftId, guestName, message } = req.body;
+  const { giftId, guestName, message, quantity } = req.body;
 
   if (!giftId || !guestName || typeof guestName !== 'string' || !guestName.trim()) {
     return res.status(400).json({ error: 'Por favor, informe seu nome para confirmar o presente.' });
   }
+
+  const requestedQty = Math.max(1, parseInt(quantity, 10) || 1);
 
   // Execute atomically via async mutex to avoid race conditions between simultaneous guests
   try {
@@ -253,14 +255,24 @@ app.post('/api/reservations', async (req, res) => {
         return {
           status: 409,
           data: {
-            error: 'Que pena! A última unidade deste presente acabou de ser reservada por outro convidado.',
+            error: 'Que pena! Todas as unidades deste presente já foram reservadas.',
             code: 'OUT_OF_STOCK'
           }
         };
       }
 
+      if (requestedQty > gift.availableQuantity) {
+        return {
+          status: 409,
+          data: {
+            error: `Que pena! Apenas ${gift.availableQuantity} ${gift.availableQuantity === 1 ? 'unidade está disponível' : 'unidades estão disponíveis'} no momento.`,
+            code: 'INSUFFICIENT_STOCK'
+          }
+        };
+      }
+
       // Safe decrement
-      gift.availableQuantity -= 1;
+      gift.availableQuantity -= requestedQty;
       if (gift.availableQuantity <= 0) {
         gift.availableQuantity = 0;
         gift.status = 'depleted';
@@ -272,7 +284,7 @@ app.post('/api/reservations', async (req, res) => {
         giftName: gift.name,
         guestName: guestName.trim(),
         message: message?.trim() || undefined,
-        quantity: 1,
+        quantity: requestedQty,
         createdAt: new Date().toISOString(),
         status: 'confirmed'
       };

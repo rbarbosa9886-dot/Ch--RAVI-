@@ -122,13 +122,20 @@ export default function App() {
   };
 
   // Handle gift reservation
-  const handleConfirmReservation = async (giftId: string, guestName: string, message: string) => {
-    const res = await reserveGift(giftId, guestName, message);
+  const handleConfirmReservation = async (
+    giftId: string,
+    guestName: string,
+    message: string,
+    quantity: number = 1
+  ) => {
+    const res = await reserveGift(giftId, guestName, message, quantity);
     if (res.success && res.reservation) {
+      const reservedQty = res.reservation.quantity || quantity || 1;
+
       // Update local gift stock immediately
       setGifts(prev => prev.map(g => {
         if (g.id === giftId) {
-          const newAvail = Math.max(0, g.availableQuantity - 1);
+          const newAvail = Math.max(0, g.availableQuantity - reservedQty);
           return {
             ...g,
             availableQuantity: newAvail,
@@ -140,8 +147,8 @@ export default function App() {
 
       // Update stats
       setStats(prev => {
-        const newChosen = prev.chosenUnits + 1;
-        const newAvail = Math.max(0, prev.availableUnits - 1);
+        const newChosen = prev.chosenUnits + reservedQty;
+        const newAvail = Math.max(0, prev.availableUnits - reservedQty);
         const newPct = prev.totalUnits > 0 ? Math.round((newChosen / prev.totalUnits) * 100) : 0;
         return {
           ...prev,

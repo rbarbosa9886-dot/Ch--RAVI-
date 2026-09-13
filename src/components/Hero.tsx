@@ -38,9 +38,23 @@ export const Hero: React.FC<HeroProps> = ({ eventDetails, onScrollToGifts }) => 
 
       <div className="max-w-xl mx-auto text-center relative z-10">
         {/* Subtle Theme Tag */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-100/90 text-sky-800 text-xs font-semibold tracking-wider uppercase mb-3 shadow-xs">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-100/90 text-sky-800 text-xs font-semibold tracking-wider uppercase mb-4 shadow-xs">
           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           <span>Chá de Fraldas • Pequeno Explorador</span>
+        </div>
+
+        {/* Official Logo Centerpiece */}
+        <div className="relative mx-auto w-44 h-44 sm:w-52 sm:h-52 mb-4">
+          {/* Subtle glowing aura */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-sky-200/50 via-amber-200/40 to-sky-100/30 blur-md transform scale-105" />
+          <div className="relative w-full h-full rounded-full overflow-hidden shadow-lg border-4 border-white ring-2 ring-amber-200/90 bg-white flex items-center justify-center transition-transform duration-300 hover:scale-[1.02]">
+            <img
+              src="/ravi-logo.jpg"
+              alt="Logo Oficial Chá do Ravi - Pequeno Explorador"
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
+          </div>
         </div>
 
         {/* Grand Title with RAVI prominent */}
@@ -57,30 +71,9 @@ export const Hero: React.FC<HeroProps> = ({ eventDetails, onScrollToGifts }) => 
         </div>
 
         {/* Emotional Quote */}
-        <p className="text-slate-600 italic font-serif-title text-base sm:text-lg mb-5 text-balance">
-          “{eventDetails.subtitle || 'Estamos contando os dias para conhecer você!'}”
+        <p className="text-slate-600 italic font-serif-title text-base sm:text-lg mb-6 text-balance">
+          “{eventDetails.subtitle || 'Pequenos detalhes, grandes histórias.'}”
         </p>
-
-        {/* Delicate Thematic Illustration */}
-        <div className="relative mx-auto w-full max-w-sm mb-6">
-          <div className="relative rounded-3xl overflow-hidden shadow-md border-2 border-white ring-1 ring-amber-200/70 bg-gradient-to-b from-sky-50/70 to-amber-50/40 p-1.5">
-            <img
-              src="/ravi-hero.jpg"
-              alt="Chá do Ravi - Pequeno Explorador"
-              className="w-full h-56 sm:h-64 object-cover rounded-2xl"
-              onError={(e) => {
-                // Fallback elegant SVG placeholder if asset was still loading
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
-            {/* Little Explorer cloud badge overlay */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xs px-4 py-1 rounded-full border border-sky-100 shadow-sm flex items-center gap-1.5 text-xs text-[#1E3A8A] font-medium whitespace-nowrap">
-              <span>🧭</span>
-              <span className="font-serif-title font-semibold tracking-wide">Pequeno Explorador</span>
-              <span>⭐</span>
-            </div>
-          </div>
-        </div>
 
         {/* Invitation Call to Action text */}
         <p className="text-slate-700 text-sm sm:text-base font-normal mb-5 max-w-md mx-auto leading-relaxed">

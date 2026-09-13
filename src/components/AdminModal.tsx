@@ -471,8 +471,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         {/* Top bar */}
         <div className="bg-[#1E3A8A] text-white px-5 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-amber-300">
-              <Lock className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-full overflow-hidden border border-amber-300/80 bg-white shrink-0 flex items-center justify-center shadow-xs">
+              <img
+                src="/ravi-logo.jpg"
+                alt="Logo Chá do Ravi"
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <h2 className="font-serif-title font-bold text-base sm:text-lg">
@@ -514,8 +519,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         {!adminToken ? (
           /* LOGIN SCREEN */
           <div className="p-8 max-w-md mx-auto w-full my-auto text-center">
-            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
-              <KeyRound className="w-7 h-7" />
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden border-2 border-amber-200/90 shadow-sm bg-white flex items-center justify-center">
+              <img
+                src="/ravi-logo.jpg"
+                alt="Logo Chá do Ravi"
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <h3 className="font-serif-title text-xl font-bold text-slate-800 mb-1">
               Acesso dos Pais

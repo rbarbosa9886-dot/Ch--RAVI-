@@ -261,10 +261,11 @@ export default function App() {
                 </div>
               ) : filteredGifts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                  {filteredGifts.map((gift) => (
+                  {filteredGifts.map((gift, index) => (
                     <GiftCard
                       key={gift.id}
                       gift={gift}
+                      index={index}
                       onSelect={(g) => setSelectedGift(g)}
                     />
                   ))}
@@ -314,7 +315,15 @@ export default function App() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200/80 py-8 px-4 text-center text-xs text-slate-500">
-        <div className="max-w-md mx-auto space-y-2">
+        <div className="max-w-md mx-auto space-y-2.5">
+          <div className="w-12 h-12 mx-auto rounded-full overflow-hidden border border-amber-200/90 shadow-2xs bg-white flex items-center justify-center">
+            <img
+              src="/ravi-logo.jpg"
+              alt="Logo Chá do Ravi"
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
+          </div>
           <div className="flex items-center justify-center gap-2 text-[#1E3A8A]">
             <Compass className="w-4 h-4" />
             <span className="font-serif-title font-bold text-sm tracking-wider">CHÁ DO RAVI</span>
@@ -323,7 +332,7 @@ export default function App() {
           <p className="text-slate-400 text-[11px]">
             Pequeno Explorador • Feito com todo carinho para comemorar a chegada do Ravi
           </p>
-          <p className="text-slate-400 text-[10px] pt-2">
+          <p className="text-slate-400 text-[10px] pt-1">
             © 2026 Chá do Ravi. Todos os direitos reservados à família.
           </p>
         </div>

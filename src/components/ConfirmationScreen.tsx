@@ -44,9 +44,14 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-gradient-to-b from-sky-100/60 to-transparent rounded-b-full pointer-events-none -z-0" />
 
         <div className="relative z-10">
-          {/* Big Heart / Gift Icon */}
-          <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-tr from-[#1E3A8A] to-[#38BDF8] flex items-center justify-center text-white shadow-lg ring-4 ring-amber-100 animate-soft-float">
-            <span className="text-3xl">🎁</span>
+          {/* Logo Badge */}
+          <div className="w-24 h-24 mx-auto mb-3 rounded-full overflow-hidden shadow-md border-2 border-white ring-2 ring-amber-200/90 bg-white flex items-center justify-center animate-soft-float">
+            <img
+              src="/ravi-logo.jpg"
+              alt="Chá do Ravi - Pequeno Explorador"
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
 
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">

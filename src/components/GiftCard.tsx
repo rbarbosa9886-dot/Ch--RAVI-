@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Gift as GiftIcon, Heart, Check, Sparkles, Tag } from 'lucide-react';
 import { Gift } from '../types.ts';
 import { CATEGORIES } from './CategoryFilter.tsx';
@@ -6,15 +7,23 @@ import { CATEGORIES } from './CategoryFilter.tsx';
 interface GiftCardProps {
   gift: Gift;
   onSelect: (gift: Gift) => void;
+  index?: number;
 }
 
-export const GiftCard: React.FC<GiftCardProps> = ({ gift, onSelect }) => {
+export const GiftCard: React.FC<GiftCardProps> = ({ gift, onSelect, index = 0 }) => {
   const isDepleted = gift.availableQuantity <= 0;
   const categoryInfo = CATEGORIES.find(c => c.id === gift.category);
 
   return (
-    <div
+    <motion.div
       id={`gift-card-${gift.id}`}
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.45,
+        ease: [0.25, 0.1, 0.25, 1],
+        delay: Math.min(index * 0.05, 0.35)
+      }}
       className={`delicate-card rounded-2xl overflow-hidden flex flex-col transition-all duration-200 ${
         isDepleted
           ? 'opacity-70 bg-slate-50/70 border-slate-200'
@@ -117,6 +126,6 @@ export const GiftCard: React.FC<GiftCardProps> = ({ gift, onSelect }) => {
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

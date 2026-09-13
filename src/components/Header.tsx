@@ -26,8 +26,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdmin, isAdminLoggedIn }) 
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Brand & Logo */}
         <div className="flex items-center space-x-2.5">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#1E3A8A] to-[#38BDF8] flex items-center justify-center text-white shadow-sm ring-2 ring-amber-200/60">
-            <Sparkles className="w-4 h-4 text-amber-200" />
+          <div className="w-10 h-10 rounded-full overflow-hidden shadow-xs border-2 border-amber-200/90 bg-white ring-2 ring-sky-100/70 shrink-0 flex items-center justify-center">
+            <img
+              src="/ravi-logo.jpg"
+              alt="Logo Chá do Ravi"
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div>
             <div className="flex items-center gap-1.5">

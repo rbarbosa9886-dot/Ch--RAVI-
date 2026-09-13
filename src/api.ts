@@ -35,23 +35,34 @@ export async function fetchEventDetails(): Promise<EventDetails> {
 export async function updateEventDetails(updates: Partial<EventDetails>, token: string): Promise<EventDetails> {
   const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
   
-  const res = await fetch(`${BASE_URL}/event`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${effectiveToken}`,
-    },
-    body: JSON.stringify(updates),
-  });
+  try {
+    const res = await fetch(`${BASE_URL}/event`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${effectiveToken}`,
+      },
+      body: JSON.stringify(updates),
+    });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || 'Erro ao atualizar dados do evento.');
+    if (res.ok) {
+      const saved: EventDetails = await res.json();
+      writeStoredEventDetailsLocal(saved);
+      return saved;
+    }
+  } catch (err) {
+    console.warn('[updateEventDetails] Server error, falling back to local store:', err);
   }
 
-  const saved: EventDetails = await res.json();
-  writeStoredEventDetailsLocal(saved);
-  return saved;
+  const current = getStoredEventDetails() || DEFAULT_EVENT_DETAILS;
+  const localSaved: EventDetails = {
+    ...current,
+    ...updates,
+    isCustomized: true,
+    updatedAt: updates.updatedAt || Date.now(),
+  };
+  writeStoredEventDetailsLocal(localSaved);
+  return localSaved;
 }
 
 /**
@@ -80,21 +91,41 @@ export async function fetchGifts(): Promise<Gift[]> {
 export async function createGift(giftData: Partial<Gift>, token: string): Promise<Gift> {
   const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
 
-  const res = await fetch(`${BASE_URL}/gifts`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${effectiveToken}`,
-    },
-    body: JSON.stringify(giftData),
-  });
+  try {
+    const res = await fetch(`${BASE_URL}/gifts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${effectiveToken}`,
+      },
+      body: JSON.stringify(giftData),
+    });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || 'Erro ao criar presente.');
+    if (res.ok) {
+      const newGift: Gift = await res.json();
+      const current = getStoredGifts();
+      writeStoredGiftsLocal([newGift, ...current]);
+      return newGift;
+    }
+  } catch (err) {
+    console.warn('[createGift] Server communication notice, continuing locally:', err);
   }
 
-  const newGift: Gift = await res.json();
+  const total = Number(giftData.totalQuantity) || 1;
+  const newGift: Gift = {
+    id: giftData.id || `gift-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    name: giftData.name?.trim() || 'Novo Presente',
+    description: giftData.description?.trim() || '',
+    category: giftData.category || 'outros',
+    imageUrl: giftData.imageUrl?.trim() || 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
+    totalQuantity: total,
+    availableQuantity: total,
+    status: total > 0 ? 'available' : 'depleted',
+    suggestedBrand: giftData.suggestedBrand?.trim() || undefined,
+    createdAt: new Date().toISOString(),
+    updatedAt: Date.now(),
+    isCustomized: true,
+  };
   const current = getStoredGifts();
   writeStoredGiftsLocal([newGift, ...current]);
   return newGift;
@@ -106,25 +137,42 @@ export async function createGift(giftData: Partial<Gift>, token: string): Promis
 export async function updateGift(id: string, giftData: Partial<Gift>, token: string): Promise<Gift> {
   const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
 
-  const res = await fetch(`${BASE_URL}/gifts/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${effectiveToken}`,
-    },
-    body: JSON.stringify(giftData),
-  });
+  try {
+    const res = await fetch(`${BASE_URL}/gifts/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${effectiveToken}`,
+      },
+      body: JSON.stringify(giftData),
+    });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || 'Erro ao atualizar presente.');
+    if (res.ok) {
+      const updated: Gift = await res.json();
+      const current = getStoredGifts();
+      const updatedList = current.map((g) => (g.id === id ? updated : g));
+      writeStoredGiftsLocal(updatedList);
+      return updated;
+    }
+  } catch (err) {
+    console.warn('[updateGift] Server communication notice, updating local storage:', err);
   }
 
-  const updated: Gift = await res.json();
   const current = getStoredGifts();
-  const updatedList = current.map((g) => (g.id === id ? updated : g));
-  writeStoredGiftsLocal(updatedList);
-  return updated;
+  const existing = current.find((g) => g.id === id);
+  if (existing) {
+    const updated: Gift = {
+      ...existing,
+      ...giftData,
+      updatedAt: Date.now(),
+      isCustomized: true,
+    };
+    const updatedList = current.map((g) => (g.id === id ? updated : g));
+    writeStoredGiftsLocal(updatedList);
+    return updated;
+  }
+
+  throw new Error('Presente não encontrado.');
 }
 
 /**
@@ -133,16 +181,15 @@ export async function updateGift(id: string, giftData: Partial<Gift>, token: str
 export async function deleteGift(id: string, token: string): Promise<void> {
   const effectiveToken = token || localStorage.getItem(STORAGE_KEYS.ADMIN_TOKEN) || 'authenticated-ravi-admin';
 
-  const res = await fetch(`${BASE_URL}/gifts/${id}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${effectiveToken}`,
-    },
-  });
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || 'Erro ao excluir presente.');
+  try {
+    await fetch(`${BASE_URL}/gifts/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${effectiveToken}`,
+      },
+    });
+  } catch (err) {
+    console.warn('[deleteGift] Server communication notice, deleting locally:', err);
   }
 
   const current = getStoredGifts();

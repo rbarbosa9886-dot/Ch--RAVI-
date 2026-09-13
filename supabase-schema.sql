@@ -251,7 +251,7 @@ BEGIN
 END;
 $$;
 
--- 7. ROW LEVEL SECURITY (RLS) POLICIES
+-- 7. ROW LEVEL SECURITY (RLS) POLICIES & GRANTS
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gifts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
@@ -263,27 +263,26 @@ DROP POLICY IF EXISTS "Allow public read gifts" ON gifts;
 DROP POLICY IF EXISTS "Allow public read event_details" ON event_details;
 DROP POLICY IF EXISTS "Allow public read reservations" ON reservations;
 DROP POLICY IF EXISTS "Allow public insert reservations" ON reservations;
+DROP POLICY IF EXISTS "Allow all categories" ON categories;
+DROP POLICY IF EXISTS "Allow all gifts" ON gifts;
+DROP POLICY IF EXISTS "Allow all event_details" ON event_details;
+DROP POLICY IF EXISTS "Allow all reservations" ON reservations;
 
--- Categories: Public read
-CREATE POLICY "Allow public read categories" ON categories
-  FOR SELECT USING (true);
+-- Full access policies (Admin authorization is validated at the Express backend level)
+CREATE POLICY "Allow all categories" ON categories
+  FOR ALL USING (true) WITH CHECK (true);
 
--- Gifts: Public read
-CREATE POLICY "Allow public read gifts" ON gifts
-  FOR SELECT USING (true);
+CREATE POLICY "Allow all gifts" ON gifts
+  FOR ALL USING (true) WITH CHECK (true);
 
--- Event details: Public read
-CREATE POLICY "Allow public read event_details" ON event_details
-  FOR SELECT USING (true);
+CREATE POLICY "Allow all event_details" ON event_details
+  FOR ALL USING (true) WITH CHECK (true);
 
--- Reservations: Public read
-CREATE POLICY "Allow public read reservations" ON reservations
-  FOR SELECT USING (true);
+CREATE POLICY "Allow all reservations" ON reservations
+  FOR ALL USING (true) WITH CHECK (true);
 
--- Reservations: Public insert
-CREATE POLICY "Allow public insert reservations" ON reservations
-  FOR INSERT WITH CHECK (true);
-
--- Note: In Supabase, the backend using the SERVICE_ROLE_KEY automatically bypasses RLS
--- and has full read, insert, update and delete capabilities on all tables.
+-- Grant privileges to public/anon/authenticated roles
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 

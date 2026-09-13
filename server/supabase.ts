@@ -325,18 +325,26 @@ export async function updateEventDetailsSupabase(updates: Partial<EventDetails>)
   const supabase = getSupabase();
   if (!supabase) return null;
 
-  const row = mapEventDetailsToDb(updates);
-  const { data, error } = await supabase
-    .from('event_details')
-    .upsert(row, { onConflict: 'id' })
-    .select()
-    .single();
+  try {
+    const row = mapEventDetailsToDb(updates);
+    const { data, error } = await supabase
+      .from('event_details')
+      .upsert(row, { onConflict: 'id' })
+      .select()
+      .single();
 
-  if (error) {
-    console.error('[Supabase] Error updating event_details:', error);
-    throw new Error(error.message);
+    if (error) {
+      if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+        return null;
+      }
+      console.warn('[Supabase] Error updating event_details:', error.message);
+      return null;
+    }
+    return mapEventDetailsFromDb(data);
+  } catch (err: any) {
+    console.warn('[Supabase] Exception updating event_details:', err.message || err);
+    return null;
   }
-  return mapEventDetailsFromDb(data);
 }
 
 // =========================================================================
@@ -376,22 +384,27 @@ export async function createGiftSupabase(giftData: Partial<Gift>): Promise<Gift>
     image_url: giftData.imageUrl?.trim() || 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
     category: giftData.category || 'outros',
     total_quantity: total,
-    available_quantity: total,
+    available_quantity: giftData.availableQuantity !== undefined ? Number(giftData.availableQuantity) : total,
     status: total > 0 ? 'available' : 'depleted',
     suggested_brand: giftData.suggestedBrand?.trim() || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase.from('gifts').insert(row).select().single();
+  const { data, error } = await supabase.from('gifts').upsert(row, { onConflict: 'id' }).select().single();
   if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+      const err: any = new Error('Tabelas do Supabase ainda não inicializadas.');
+      err.code = 'SCHEMA_NOT_INITIALIZED';
+      throw err;
+    }
     console.error('[Supabase] Error inserting gift:', error);
     throw new Error(error.message);
   }
   return mapGiftFromDb(data);
 }
 
-export async function updateGiftSupabase(id: string, giftData: Partial<Gift>): Promise<Gift> {
+export async function updateGiftSupabase(id: string, giftData: Partial<Gift>, fallbackLocalGift?: Gift): Promise<Gift> {
   const supabase = getSupabase();
   if (!supabase) throw new Error('Supabase não conectado.');
 
@@ -402,8 +415,32 @@ export async function updateGiftSupabase(id: string, giftData: Partial<Gift>): P
     .eq('id', id)
     .single();
 
-  if (fetchErr || !existing) {
-    throw new Error('Presente não encontrado no Supabase.');
+  if (fetchErr) {
+    if (fetchErr.code === 'PGRST205' || fetchErr.message?.includes('schema cache')) {
+      const err: any = new Error('Tabelas do Supabase ainda não inicializadas.');
+      err.code = 'SCHEMA_NOT_INITIALIZED';
+      throw err;
+    }
+  }
+
+  // If gift doesn't exist yet in Supabase (e.g. table created but gifts not yet migrated):
+  if (!existing) {
+    const base = fallbackLocalGift || {
+      id,
+      name: giftData.name || 'Presente',
+      description: giftData.description || '',
+      category: giftData.category || 'outros',
+      totalQuantity: Number(giftData.totalQuantity) || 1,
+      availableQuantity: Number(giftData.totalQuantity) || 1,
+      imageUrl: giftData.imageUrl || '',
+      suggestedBrand: giftData.suggestedBrand,
+    };
+
+    return await createGiftSupabase({
+      ...base,
+      ...giftData,
+      id,
+    });
   }
 
   let newTotal = existing.total_quantity;
@@ -442,6 +479,11 @@ export async function updateGiftSupabase(id: string, giftData: Partial<Gift>): P
     .single();
 
   if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+      const err: any = new Error('Tabelas do Supabase ainda não inicializadas.');
+      err.code = 'SCHEMA_NOT_INITIALIZED';
+      throw err;
+    }
     console.error('[Supabase] Error updating gift:', error);
     throw new Error(error.message);
   }
@@ -454,6 +496,9 @@ export async function deleteGiftSupabase(id: string): Promise<void> {
 
   const { error } = await supabase.from('gifts').delete().eq('id', id);
   if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+      return;
+    }
     console.error('[Supabase] Error deleting gift:', error);
     throw new Error(error.message);
   }

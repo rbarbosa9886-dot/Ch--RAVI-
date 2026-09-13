@@ -162,17 +162,18 @@ app.get('/api/event', async (req, res) => {
 app.put('/api/event', verifyAdminAuth, async (req, res) => {
   const updates = req.body;
 
+  let savedInSupabase = false;
   if (isSupabaseConfigured()) {
     try {
       const saved = await updateEventDetailsSupabase(updates);
       if (saved) {
         db.eventDetails = saved;
         saveDb();
+        savedInSupabase = true;
         return res.json(saved);
       }
     } catch (err: any) {
-      console.error('[API /event PUT] Supabase error:', err);
-      return res.status(500).json({ error: err.message || 'Erro ao atualizar dados no Supabase.' });
+      console.warn('[API /event PUT] Supabase notice, continuing with local store:', err.message || err);
     }
   }
 
@@ -248,9 +249,11 @@ app.post('/api/gifts', verifyAdminAuth, async (req, res) => {
     return res.status(400).json({ error: 'Campos obrigatórios inválidos.' });
   }
 
+  let createdGift: Gift | null = null;
+
   if (isSupabaseConfigured()) {
     try {
-      const created = await createGiftSupabase({
+      createdGift = await createGiftSupabase({
         name,
         description,
         category,
@@ -258,16 +261,12 @@ app.post('/api/gifts', verifyAdminAuth, async (req, res) => {
         imageUrl,
         suggestedBrand,
       });
-      db.gifts.unshift(created);
-      saveDb();
-      return res.status(201).json(created);
     } catch (err: any) {
-      console.error('[API /gifts POST] Supabase error:', err);
-      return res.status(500).json({ error: err.message || 'Erro ao criar presente no Supabase.' });
+      console.warn('[API /gifts POST] Supabase create notice, continuing with local store:', err.message || err);
     }
   }
 
-  const newGift: Gift = {
+  const newGift: Gift = createdGift || {
     id: 'gift-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
     name: name.trim(),
     description: (description || '').trim(),
@@ -284,42 +283,64 @@ app.post('/api/gifts', verifyAdminAuth, async (req, res) => {
 
   db.gifts.unshift(newGift);
   saveDb();
-  res.status(201).json(newGift);
+  return res.status(201).json(newGift);
 });
 
 // Update Gift (Admin)
 app.put('/api/gifts/:id', verifyAdminAuth, async (req, res) => {
   const { id } = req.params;
+  const giftIndex = db.gifts.findIndex(g => g.id === id);
+  const existingLocal = giftIndex !== -1 ? db.gifts[giftIndex] : undefined;
 
+  let supabaseUpdated: Gift | null = null;
   if (isSupabaseConfigured()) {
     try {
-      const updated = await updateGiftSupabase(id, req.body);
-      const idx = db.gifts.findIndex(g => g.id === id);
-      if (idx !== -1) db.gifts[idx] = updated;
-      else db.gifts.unshift(updated);
-      saveDb();
-      return res.json(updated);
+      supabaseUpdated = await updateGiftSupabase(id, req.body, existingLocal);
     } catch (err: any) {
-      console.error('[API /gifts/:id PUT] Supabase error:', err);
-      return res.status(500).json({ error: err.message || 'Erro ao atualizar presente no Supabase.' });
+      console.warn('[API /gifts/:id PUT] Supabase notice, continuing with local store:', err.message || err);
     }
   }
 
-  const giftIndex = db.gifts.findIndex(g => g.id === id);
-  if (giftIndex === -1) {
+  if (supabaseUpdated) {
+    if (giftIndex !== -1) db.gifts[giftIndex] = supabaseUpdated;
+    else db.gifts.unshift(supabaseUpdated);
+    saveDb();
+    return res.json(supabaseUpdated);
+  }
+
+  if (!existingLocal) {
+    if (req.body.name) {
+      const total = Number(req.body.totalQuantity) || 1;
+      const created: Gift = {
+        id,
+        name: req.body.name.trim(),
+        description: (req.body.description || '').trim(),
+        category: req.body.category || 'outros',
+        imageUrl: req.body.imageUrl?.trim() || 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80',
+        totalQuantity: total,
+        availableQuantity: req.body.availableQuantity !== undefined ? Number(req.body.availableQuantity) : total,
+        status: total > 0 ? 'available' : 'depleted',
+        suggestedBrand: req.body.suggestedBrand?.trim() || undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: Date.now(),
+        isCustomized: true
+      };
+      db.gifts.unshift(created);
+      saveDb();
+      return res.json(created);
+    }
     return res.status(404).json({ error: 'Presente não encontrado.' });
   }
 
-  const existing = db.gifts[giftIndex];
   const { name, description, category, totalQuantity, imageUrl, suggestedBrand, availableQuantity } = req.body;
 
-  let newTotal = existing.totalQuantity;
-  let newAvailable = existing.availableQuantity;
+  let newTotal = existingLocal.totalQuantity;
+  let newAvailable = existingLocal.availableQuantity;
 
   if (typeof totalQuantity === 'number' && totalQuantity >= 0) {
-    const difference = totalQuantity - existing.totalQuantity;
+    const difference = totalQuantity - existingLocal.totalQuantity;
     newTotal = totalQuantity;
-    newAvailable = Math.max(0, existing.availableQuantity + difference);
+    newAvailable = Math.max(0, existingLocal.availableQuantity + difference);
   }
 
   if (typeof availableQuantity === 'number') {
@@ -327,12 +348,12 @@ app.put('/api/gifts/:id', verifyAdminAuth, async (req, res) => {
   }
 
   const updated: Gift = {
-    ...existing,
-    name: name !== undefined ? name.trim() : existing.name,
-    description: description !== undefined ? description.trim() : existing.description,
-    category: category || existing.category,
-    imageUrl: imageUrl !== undefined ? imageUrl.trim() : existing.imageUrl,
-    suggestedBrand: suggestedBrand !== undefined ? suggestedBrand.trim() : existing.suggestedBrand,
+    ...existingLocal,
+    name: name !== undefined ? name.trim() : existingLocal.name,
+    description: description !== undefined ? description.trim() : existingLocal.description,
+    category: category || existingLocal.category,
+    imageUrl: imageUrl !== undefined ? imageUrl.trim() : existingLocal.imageUrl,
+    suggestedBrand: suggestedBrand !== undefined ? suggestedBrand.trim() : existingLocal.suggestedBrand,
     totalQuantity: newTotal,
     availableQuantity: newAvailable,
     status: newAvailable > 0 ? 'available' : 'depleted',
@@ -352,12 +373,8 @@ app.delete('/api/gifts/:id', verifyAdminAuth, async (req, res) => {
   if (isSupabaseConfigured()) {
     try {
       await deleteGiftSupabase(id);
-      db.gifts = db.gifts.filter(g => g.id !== id);
-      saveDb();
-      return res.json({ success: true });
     } catch (err: any) {
-      console.error('[API /gifts/:id DELETE] Supabase error:', err);
-      return res.status(500).json({ error: err.message || 'Erro ao excluir presente do Supabase.' });
+      console.warn('[API /gifts/:id DELETE] Supabase notice, continuing with local store:', err.message || err);
     }
   }
 

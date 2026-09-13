@@ -6,9 +6,9 @@
 
 export async function optimizeImageFile(
   file: File,
-  maxWidth = 900,
-  maxHeight = 900,
-  quality = 0.84
+  maxWidth = 800,
+  maxHeight = 800,
+  quality = 0.82
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {

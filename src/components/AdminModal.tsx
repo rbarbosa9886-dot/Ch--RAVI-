@@ -85,6 +85,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [giftImageUrl, setGiftImageUrl] = useState('');
   const [giftBrand, setGiftBrand] = useState('');
   const [isSavingGift, setIsSavingGift] = useState(false);
+  const [giftFormError, setGiftFormError] = useState<string | null>(null);
 
   // Event details form
   const [editEvent, setEditEvent] = useState<EventDetails>({ ...eventDetails });
@@ -212,6 +213,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setGiftQuantity(3);
     setGiftImageUrl('https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80');
     setGiftBrand('');
+    setGiftFormError(null);
     setIsGiftFormOpen(true);
   };
 
@@ -223,6 +225,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setGiftQuantity(gift.totalQuantity);
     setGiftImageUrl(gift.imageUrl);
     setGiftBrand(gift.suggestedBrand || '');
+    setGiftFormError(null);
     setIsGiftFormOpen(true);
   };
 
@@ -231,6 +234,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     e.preventDefault();
     if (!adminToken) return;
     setIsSavingGift(true);
+    setGiftFormError(null);
     try {
       if (editingGift) {
         await updateGift(editingGift.id, {
@@ -257,7 +261,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       onGiftsUpdated();
       setTimeout(() => setActionSuccessMessage(null), 3000);
     } catch (err: any) {
-      alert(err.message || 'Erro ao salvar presente.');
+      setGiftFormError(err.message || 'Erro ao salvar presente.');
     } finally {
       setIsSavingGift(false);
     }
@@ -275,7 +279,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setActionSuccessMessage(`Presente "${gift.name}" excluído.`);
       setTimeout(() => setActionSuccessMessage(null), 3000);
     } catch (err: any) {
-      alert(err.message || 'Erro ao excluir presente.');
+      setActionSuccessMessage(`Erro ao excluir presente: ${err.message || 'Falha na requisição'}`);
+      setTimeout(() => setActionSuccessMessage(null), 5000);
     }
   };
 
@@ -1458,6 +1463,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </div>
 
             <form onSubmit={handleSaveGift} className="space-y-3.5 text-xs">
+              {giftFormError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                  {giftFormError}
+                </div>
+              )}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Nome do Presente *</label>
                 <input

@@ -1,6 +1,19 @@
 {
   "gifts": [
     {
+      "id": "gift-meias-luvinhas",
+      "name": "Kit Meias e Luvinhas de Algodão",
+      "description": "",
+      "category": "roupinhas",
+      "imageUrl": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&auto=format&fit=crop&q=80",
+      "totalQuantity": 2,
+      "availableQuantity": 2,
+      "status": "available",
+      "createdAt": "2026-09-13T11:29:02.085Z",
+      "updatedAt": 1789298942085,
+      "isCustomized": true
+    },
+    {
       "id": "gift-fralda-rn",
       "name": "Fraldas tamanho RN",
       "description": "Pacote de fraldas descartáveis tamanho RN para os primeiros dias.",
@@ -198,7 +211,7 @@
     },
     {
       "id": "gift-kit-meias-lupinhas",
-      "name": "Kit Meias e Luvinhas de Algodão",
+      "name": "Kit Meias e Luvinhas de Algodão (Teste)",
       "description": "Kit de meinhas confortáveis e luvinhas para proteger as mãozinhas curiosas.",
       "imageUrl": "https://images.unsplash.com/photo-1519689680058-324335c77eba?w=600&auto=format&fit=crop&q=80",
       "category": "roupinhas",
@@ -208,7 +221,7 @@
       "createdAt": "2026-09-12T10:00:00.000Z",
       "suggestedBrand": "Tamanho RN / 0-3 meses",
       "isCustomized": true,
-      "updatedAt": 1789294787679
+      "updatedAt": 1789298921896
     },
     {
       "id": "gift-ninho-redutor",

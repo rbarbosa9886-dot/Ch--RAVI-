@@ -22,6 +22,7 @@ import {
   cancelReservationSupabase,
   clearAllReservationsSupabase,
   getDashboardStatsSupabase,
+  getSupabaseDiagnostics,
 } from './server/supabase.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -399,12 +400,12 @@ app.post('/api/reservations', async (req, res) => {
         }
         saveDb();
         return res.status(201).json(result);
-      } else {
+      } else if (result.code !== 'SCHEMA_NOT_INITIALIZED' && result.code !== 'NOT_FOUND') {
         return res.status(409).json(result);
       }
+      // If table not initialized in Supabase or gift only in local DB, fall through to local reservation
     } catch (err: any) {
-      console.error('[Reservation Error Supabase]', err);
-      return res.status(500).json({ error: 'Erro ao processar a reserva no banco de dados. Tente novamente.' });
+      console.warn('[Reservation Supabase Notice - falling back to local memory store]:', err.message || err);
     }
   }
 
@@ -497,23 +498,20 @@ app.post('/api/admin/reservations/:id/cancel', verifyAdminAuth, async (req, res)
   if (isSupabaseConfigured()) {
     try {
       const result = await cancelReservationSupabase(id);
-      if (!result.success) {
-        return res.status(400).json({ error: result.error || 'Erro ao cancelar reserva.' });
+      if (result.success) {
+        // Reload fresh state from Supabase
+        const [gifts, reservations] = await Promise.all([
+          getGiftsSupabase(),
+          getReservationsSupabase()
+        ]);
+        if (gifts) db.gifts = gifts;
+        if (reservations) db.reservations = reservations;
+        saveDb();
+
+        return res.json({ success: true });
       }
-
-      // Reload fresh state from Supabase
-      const [gifts, reservations] = await Promise.all([
-        getGiftsSupabase(),
-        getReservationsSupabase()
-      ]);
-      if (gifts) db.gifts = gifts;
-      if (reservations) db.reservations = reservations;
-      saveDb();
-
-      return res.json({ success: true });
     } catch (err: any) {
-      console.error('[API cancel reservation Supabase]', err);
-      return res.status(500).json({ error: err.message || 'Erro ao cancelar reserva no Supabase.' });
+      console.warn('[API cancel reservation Supabase fallback]:', err.message || err);
     }
   }
 
@@ -611,33 +609,20 @@ app.get('/api/admin/stats', async (req, res) => {
 
 // Supabase Status check endpoint
 app.get('/api/admin/supabase-status', verifyAdminAuth, async (req, res) => {
-  const configured = isSupabaseConfigured();
-  let tableStats: any = null;
-
-  if (configured) {
-    try {
-      const [gifts, reservations, event] = await Promise.all([
-        getGiftsSupabase(),
-        getReservationsSupabase(),
-        getEventDetailsSupabase(),
-      ]);
-      tableStats = {
-        giftsCount: gifts?.length || 0,
-        reservationsCount: reservations?.length || 0,
-        eventSaved: !!event,
-      };
-    } catch (err: any) {
-      tableStats = { error: err.message };
-    }
+  try {
+    const diagnostics = await getSupabaseDiagnostics();
+    res.json(diagnostics);
+  } catch (err: any) {
+    res.json({
+      isConfigured: isSupabaseConfigured(),
+      supabaseUrl: process.env.SUPABASE_URL ? 'Definido' : null,
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+      tablesCreated: false,
+      message: err.message || 'Erro ao verificar Supabase',
+      tableStats: { error: err.message },
+    });
   }
-
-  res.json({
-    isConfigured: configured,
-    supabaseUrl: process.env.SUPABASE_URL ? 'Definido no ambiente' : 'Não configurado',
-    hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
-    tableStats,
-  });
 });
 
 // Explicit migration trigger endpoint (Admin)

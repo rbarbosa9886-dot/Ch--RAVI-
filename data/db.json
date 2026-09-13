@@ -297,6 +297,16 @@
   ],
   "reservations": [
     {
+      "id": "res-1789298424690-deqtn",
+      "giftId": "gift-fralda-rn",
+      "giftName": "Fraldas tamanho RN",
+      "guestName": "Tia Laura",
+      "message": "Cheio de amor para o Ravi!",
+      "quantity": 1,
+      "createdAt": "2026-09-13T11:20:24.690Z",
+      "status": "cancelled"
+    },
+    {
       "id": "res-1789296519777-1th1r",
       "giftId": "gift-fralda-rn",
       "giftName": "Fraldas tamanho RN",

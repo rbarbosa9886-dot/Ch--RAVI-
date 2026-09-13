@@ -1367,12 +1367,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                       <div className="flex items-center gap-2">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 ${
-                          supabaseStatus?.isConfigured
+                          supabaseStatus?.isConfigured && supabaseStatus?.tablesCreated
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                            : supabaseStatus?.isConfigured
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-slate-50 text-slate-700 border-slate-200'
                         }`}>
-                          <span className={`w-2 h-2 rounded-full ${supabaseStatus?.isConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                          {supabaseStatus?.isConfigured ? 'Supabase Conectado' : 'Aguardando Variáveis Supabase'}
+                          <span className={`w-2 h-2 rounded-full ${
+                            supabaseStatus?.isConfigured && supabaseStatus?.tablesCreated
+                              ? 'bg-emerald-500 animate-pulse'
+                              : supabaseStatus?.isConfigured
+                              ? 'bg-amber-500'
+                              : 'bg-slate-400'
+                          }`} />
+                          {supabaseStatus?.isConfigured && supabaseStatus?.tablesCreated
+                            ? 'Supabase Conectado e Ativo'
+                            : supabaseStatus?.isConfigured
+                            ? 'Supabase Conectado (Tabelas Pendentes)'
+                            : 'Modo Local Ativo'}
                         </span>
                       </div>
                     </div>
@@ -1380,9 +1392,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     <p className="text-slate-600 leading-relaxed text-[11px]">
                       A persistência de dados está estruturada no fluxo <strong>Frontend → API/Backend → Supabase</strong> com reservas atômicas (PL/pgSQL).
                       {supabaseStatus?.isConfigured
-                        ? ' As credenciais SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY estão ativas no servidor.'
-                        : ' Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no ambiente (Vercel ou .env) para apontar para seu banco oficial.'}
+                        ? (supabaseStatus?.tablesCreated
+                            ? ' As tabelas estão ativas e sincronizadas no Supabase.'
+                            : ' O projeto Supabase foi detectado com sucesso. Para gravar os dados na nuvem, execute o arquivo supabase-schema.sql no SQL Editor do Supabase.')
+                        : ' Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no ambiente para apontar para seu banco oficial.'}
                     </p>
+
+                    {supabaseStatus?.isConfigured && !supabaseStatus?.tablesCreated && (
+                      <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-900 space-y-1.5">
+                        <p className="font-bold flex items-center gap-1.5 text-amber-800">
+                          <span>📋</span> Como inicializar as tabelas no Supabase:
+                        </p>
+                        <p className="text-amber-700">
+                          1. Acesse o painel do seu projeto no Supabase (<strong>SQL Editor</strong>).<br />
+                          2. Abra o arquivo <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-[10px]">supabase-schema.sql</code> que está na raiz do projeto.<br />
+                          3. Cole e clique em <strong>Run</strong>. Todas as tabelas, permissões e procedimentos atômicos de reserva serão criados instantaneamente!
+                        </p>
+                      </div>
+                    )}
 
                     {supabaseStatus?.isConfigured && (
                       <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-[11px]">

@@ -2,31 +2,123 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Gift, Reservation, EventDetails, DashboardStats } from '../src/types.js';
 
 let supabaseClient: SupabaseClient | null = null;
+let currentKeyUsed: string | null = null;
 
-export function isSupabaseConfigured(): boolean {
-  const url = process.env.SUPABASE_URL?.trim();
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY)?.trim();
-  return !!(url && key && url.startsWith('http'));
-}
+/**
+ * Sanitizes Supabase API key.
+ * Removes variable-name prefixes (e.g. "SUPABASE_SERVICE_ROLE_KEY → ", "SUPABASE_ANON_KEY "),
+ * surrounding quotes, and any non-ASCII characters that would cause Node.js Fetch to crash
+ * with "Cannot convert argument to a ByteString" (like char 8594 '→').
+ * Also validates that the key is not an incomplete placeholder (e.g. containing '...').
+ */
+export function cleanSupabaseKey(raw?: string): string | null {
+  if (!raw || typeof raw !== 'string') return null;
+  let clean = raw.trim();
 
-export function getSupabase(): SupabaseClient | null {
-  if (supabaseClient) return supabaseClient;
+  // Strip wrapping single or double quotes
+  clean = clean.replace(/^["'`]+|["'`]+$/g, '').trim();
 
-  const url = process.env.SUPABASE_URL?.trim();
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY)?.trim();
+  // Strip common variable name prefixes that users may accidentally copy-paste
+  clean = clean.replace(/^(?:SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ANON_KEY|SUPABASE_KEY|SERVICE_ROLE_KEY|ANON_KEY)\s*[:=→\->\s]\s*/i, '').trim();
 
-  if (!url || !key) {
+  // Strip non-printable or non-ASCII characters (codes > 126 or < 32)
+  // This explicitly prevents "Cannot convert argument to a ByteString" (e.g. char 8594 '→')
+  clean = clean.replace(/[^\x20-\x7E]/g, '').trim();
+
+  // Reject placeholder values that contain literal ellipses like "..." or "…"
+  if (clean.includes('...') || clean.includes('…')) {
     return null;
   }
 
-  supabaseClient = createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+  // A valid Supabase key (JWT or sb_secret_ / sb_publishable_) must be at least 20 characters
+  if (clean.length < 20) {
+    return null;
+  }
 
-  return supabaseClient;
+  return clean;
+}
+
+/**
+ * Sanitizes Supabase project URL.
+ */
+export function cleanSupabaseUrl(raw?: string): string | null {
+  if (!raw || typeof raw !== 'string') return null;
+  let clean = raw.trim();
+
+  // Strip quotes
+  clean = clean.replace(/^["'`]+|["'`]+$/g, '').trim();
+
+  // Strip variable name prefix if copied
+  clean = clean.replace(/^(?:SUPABASE_URL|URL)\s*[:=→\->\s]\s*/i, '').trim();
+
+  // Remove non-ASCII
+  clean = clean.replace(/[^\x20-\x7E]/g, '').trim();
+
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    return null;
+  }
+
+  // Remove trailing slashes
+  return clean.replace(/\/+$/, '');
+}
+
+export interface SupabaseCredentials {
+  url: string;
+  key: string;
+  keyType: 'service_role' | 'anon';
+}
+
+/**
+ * Returns active sanitized Supabase credentials if properly configured.
+ * Prefers SUPABASE_SERVICE_ROLE_KEY (for full admin bypass), falls back to SUPABASE_ANON_KEY.
+ */
+export function getActiveSupabaseCredentials(): SupabaseCredentials | null {
+  const url = cleanSupabaseUrl(process.env.SUPABASE_URL);
+  if (!url) return null;
+
+  const serviceRoleKey = cleanSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  if (serviceRoleKey) {
+    return { url, key: serviceRoleKey, keyType: 'service_role' };
+  }
+
+  const anonKey = cleanSupabaseKey(process.env.SUPABASE_ANON_KEY);
+  if (anonKey) {
+    return { url, key: anonKey, keyType: 'anon' };
+  }
+
+  return null;
+}
+
+export function isSupabaseConfigured(): boolean {
+  return !!getActiveSupabaseCredentials();
+}
+
+export function getSupabase(): SupabaseClient | null {
+  const creds = getActiveSupabaseCredentials();
+  if (!creds) {
+    supabaseClient = null;
+    currentKeyUsed = null;
+    return null;
+  }
+
+  // Re-instantiate if client doesn't exist or key has changed
+  if (supabaseClient && currentKeyUsed === creds.key) {
+    return supabaseClient;
+  }
+
+  try {
+    supabaseClient = createClient(creds.url, creds.key, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+    currentKeyUsed = creds.key;
+    return supabaseClient;
+  } catch (err: any) {
+    console.error('[Supabase] Failed to initialize Supabase client:', err.message || err);
+    return null;
+  }
 }
 
 // Data Mapping Helpers
@@ -138,7 +230,19 @@ export async function autoMigrateData(localDb: {
       { id: 'quarto', name: 'Quarto', icon: '🛏️', display_order: 5 },
       { id: 'outros', name: 'Outros', icon: '🎁', display_order: 6 },
     ];
-    await supabase.from('categories').upsert(defaultCategories, { onConflict: 'id' });
+    const { error: catErr } = await supabase.from('categories').upsert(defaultCategories, { onConflict: 'id' });
+    if (catErr) {
+      if (catErr.code === 'PGRST205' || catErr.message?.includes('schema cache')) {
+        console.warn('[Supabase Migration] As tabelas ainda não foram criadas no Supabase (PGRST205). O app continuará operando normalmente em modo local. Para persistir no Supabase, execute o script /supabase-schema.sql no SQL Editor do seu projeto Supabase.');
+        return {
+          migratedGifts: 0,
+          migratedReservations: 0,
+          success: false,
+          message: 'As tabelas ainda não foram criadas no Supabase. Execute o script supabase-schema.sql no SQL Editor do Supabase.',
+        };
+      }
+      console.warn('[Supabase Migration] Aviso ao salvar categorias:', catErr.message || catErr);
+    }
 
     // 2. Ensure event details exist
     const { data: existingEvent } = await supabase.from('event_details').select('id').eq('id', 1).maybeSingle();
@@ -192,7 +296,7 @@ export async function autoMigrateData(localDb: {
       message: 'Dados sincronizados com o Supabase com sucesso!',
     };
   } catch (err: any) {
-    console.error('[Supabase Migration] Exception during migration:', err);
+    console.warn('[Supabase Migration] Supabase tables not available or migration skipped:', err.message || err);
     return { migratedGifts: 0, migratedReservations: 0, success: false, message: err.message };
   }
 }
@@ -206,7 +310,11 @@ export async function getEventDetailsSupabase(): Promise<EventDetails | null> {
 
   const { data, error } = await supabase.from('event_details').select('*').eq('id', 1).maybeSingle();
   if (error) {
-    console.error('[Supabase] Error fetching event_details:', error);
+    if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+      // Tables not yet initialized in Supabase, gracefully return null to use local fallback
+      return null;
+    }
+    console.warn('[Supabase] Warning fetching event_details:', error.message || error);
     return null;
   }
   if (!data) return null;
@@ -244,7 +352,11 @@ export async function getGiftsSupabase(): Promise<Gift[] | null> {
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('[Supabase] Error fetching gifts:', error);
+    if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+      // Tables not yet initialized in Supabase, gracefully return null to use local fallback
+      return null;
+    }
+    console.warn('[Supabase] Warning fetching gifts:', error.message || error);
     return null;
   }
   return (data || []).map(mapGiftFromDb);
@@ -435,7 +547,10 @@ export async function makeReservationSupabase(
     .single();
 
   if (giftErr || !gift) {
-    return { success: false, error: 'Presente não encontrado.', code: 'NOT_FOUND' };
+    if (giftErr && (giftErr.code === 'PGRST205' || giftErr.message?.includes('schema cache'))) {
+      return { success: false, error: 'Tabelas do Supabase não inicializadas.', code: 'SCHEMA_NOT_INITIALIZED' };
+    }
+    return { success: false, error: 'Presente não encontrado no Supabase.', code: 'NOT_FOUND' };
   }
 
   if (gift.available_quantity <= 0) {
@@ -516,7 +631,10 @@ export async function getReservationsSupabase(): Promise<Reservation[] | null> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('[Supabase] Error fetching reservations:', error);
+    if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+      return null;
+    }
+    console.warn('[Supabase] Warning fetching reservations:', error.message || error);
     return null;
   }
   return (data || []).map(mapReservationFromDb);
@@ -621,4 +739,105 @@ export async function getDashboardStatsSupabase(): Promise<DashboardStats | null
     availableUnits,
     completionPercentage,
   };
+}
+
+export async function getSupabaseDiagnostics(): Promise<{
+  isConfigured: boolean;
+  supabaseUrl: string | null;
+  keyType: 'service_role' | 'anon' | null;
+  hasServiceRoleKey: boolean;
+  hasAnonKey: boolean;
+  tablesCreated: boolean;
+  message: string;
+  tableStats?: any;
+}> {
+  const creds = getActiveSupabaseCredentials();
+  const hasServiceRoleKey = !!cleanSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const hasAnonKey = !!cleanSupabaseKey(process.env.SUPABASE_ANON_KEY);
+
+  if (!creds) {
+    return {
+      isConfigured: false,
+      supabaseUrl: cleanSupabaseUrl(process.env.SUPABASE_URL),
+      keyType: null,
+      hasServiceRoleKey,
+      hasAnonKey,
+      tablesCreated: false,
+      message: 'Supabase não configurado ou credenciais incompletas.',
+    };
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) {
+    return {
+      isConfigured: false,
+      supabaseUrl: creds.url,
+      keyType: creds.keyType,
+      hasServiceRoleKey,
+      hasAnonKey,
+      tablesCreated: false,
+      message: 'Falha ao inicializar o cliente Supabase.',
+    };
+  }
+
+  try {
+    const { error: giftsErr } = await supabase.from('gifts').select('id').limit(1);
+    if (giftsErr) {
+      if (giftsErr.code === 'PGRST205' || giftsErr.message?.includes('schema cache')) {
+        return {
+          isConfigured: true,
+          supabaseUrl: creds.url,
+          keyType: creds.keyType,
+          hasServiceRoleKey,
+          hasAnonKey,
+          tablesCreated: false,
+          message: 'Conectado ao Supabase! As tabelas precisam ser criadas executando o script supabase-schema.sql no SQL Editor do Supabase.',
+          tableStats: { tablesCreated: false, reason: 'PGRST205_TABLES_NOT_FOUND' },
+        };
+      }
+      return {
+        isConfigured: true,
+        supabaseUrl: creds.url,
+        keyType: creds.keyType,
+        hasServiceRoleKey,
+        hasAnonKey,
+        tablesCreated: false,
+        message: `Aviso ao consultar Supabase: ${giftsErr.message}`,
+        tableStats: { error: giftsErr.message },
+      };
+    }
+
+    const [allGifts, allRes, event] = await Promise.all([
+      supabase.from('gifts').select('id', { count: 'exact', head: true }),
+      supabase.from('reservations').select('id', { count: 'exact', head: true }),
+      supabase.from('event_details').select('id').eq('id', 1).maybeSingle(),
+    ]);
+
+    return {
+      isConfigured: true,
+      supabaseUrl: creds.url,
+      keyType: creds.keyType,
+      hasServiceRoleKey,
+      hasAnonKey,
+      tablesCreated: true,
+      message: 'Supabase conectado com tabelas ativas!',
+      tableStats: {
+        tablesCreated: true,
+        giftsCount: allGifts.count ?? 0,
+        reservationsCount: allRes.count ?? 0,
+        eventSaved: !!event.data,
+      },
+    };
+  } catch (err: any) {
+    return {
+      isConfigured: true,
+      supabaseUrl: creds.url,
+      keyType: creds.keyType,
+      hasServiceRoleKey,
+      hasAnonKey,
+      tablesCreated: false,
+      message: `Erro na conexão: ${err.message}`,
+      tableStats: { error: err.message },
+    };
+  }
 }
